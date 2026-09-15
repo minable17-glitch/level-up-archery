@@ -902,3 +902,36 @@ begin
 end;
 $$;
 grant execute on function admin_list_reflection_answers(uuid, int) to anon, authenticated;
+
+-- ── 콘텐츠 파일 업로드(Storage): 읽어보기/배워보기 이미지·영상 직접 업로드 ──
+-- 버킷은 공개 읽기(콘텐츠 자체가 민감하지 않음)이고, 업로드/수정/삭제는
+-- teachers 테이블에 auth_user_id가 연결된 사람(=로그인한 교사)만 가능하다.
+
+insert into storage.buckets (id, name, public)
+values ('content-uploads', 'content-uploads', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "content-uploads_select" on storage.objects;
+create policy "content-uploads_select" on storage.objects
+  for select using (bucket_id = 'content-uploads');
+
+drop policy if exists "content-uploads_insert" on storage.objects;
+create policy "content-uploads_insert" on storage.objects
+  for insert with check (
+    bucket_id = 'content-uploads'
+    and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
+  );
+
+drop policy if exists "content-uploads_update" on storage.objects;
+create policy "content-uploads_update" on storage.objects
+  for update using (
+    bucket_id = 'content-uploads'
+    and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
+  );
+
+drop policy if exists "content-uploads_delete" on storage.objects;
+create policy "content-uploads_delete" on storage.objects
+  for delete using (
+    bucket_id = 'content-uploads'
+    and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
+  );

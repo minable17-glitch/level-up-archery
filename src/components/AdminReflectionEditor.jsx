@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminListReflectionQuestions, adminUpsertReflectionQuestion, adminDeleteReflectionQuestion } from '../lib/api';
+import { uploadFile } from '../lib/upload';
 
 const EMPTY = { id: null, questionText: '', activitySheetUrl: '', orderIndex: 0, visible: true };
 
@@ -9,6 +10,23 @@ export default function AdminReflectionEditor({ dayId }) {
   const [form, setForm] = useState(EMPTY);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadFile(file, dayId);
+      setForm((f) => ({ ...f, activitySheetUrl: url }));
+    } catch (err) {
+      setError(err.message || '이미지 업로드에 실패했어요.');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function refresh() {
     setError('');
@@ -78,8 +96,15 @@ export default function AdminReflectionEditor({ dayId }) {
             <textarea value={form.questionText} onChange={(e) => setForm({ ...form, questionText: e.target.value })} />
           </div>
           <div className="field">
-            <label>참고 이미지/활동지 URL (선택)</label>
+            <label>참고 이미지/활동지 (선택, 파일 업로드 또는 URL)</label>
             <input type="text" value={form.activitySheetUrl} onChange={(e) => setForm({ ...form, activitySheetUrl: e.target.value })} placeholder="https://.../worksheet.jpg" />
+            <label className="btn btn-outline" style={{ marginTop: 6, display: 'inline-block', cursor: 'pointer' }}>
+              {uploading ? '업로드 중...' : '내 기기에서 이미지 올리기'}
+              <input type="file" accept="image/*" onChange={handleFile} disabled={uploading} style={{ display: 'none' }} />
+            </label>
+            {form.activitySheetUrl && (
+              <img src={form.activitySheetUrl} alt="" style={{ display: 'block', marginTop: 8, width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+            )}
           </div>
           <div className="row">
             <div className="field" style={{ flex: 1 }}>
@@ -96,7 +121,7 @@ export default function AdminReflectionEditor({ dayId }) {
           </div>
           {error && <div className="msg msg-error">{error}</div>}
           <div className="row" style={{ marginTop: 4 }}>
-            <button className="btn btn-primary" type="submit" disabled={pending}>
+            <button className="btn btn-primary" type="submit" disabled={pending || uploading}>
               {pending ? '저장 중...' : form.id ? '수정 저장' : '문항 추가'}
             </button>
             {form.id && (

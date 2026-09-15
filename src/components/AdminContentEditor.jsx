@@ -3,6 +3,8 @@ import {
   adminListReadContents, adminUpsertReadContent, adminDeleteReadContent,
   adminListLearnContents, adminUpsertLearnContent, adminDeleteLearnContent,
 } from '../lib/api';
+import { uploadFiles, uploadFile } from '../lib/upload';
+import { splitUrls } from '../lib/media';
 
 const EMPTY = { id: null, title: '', category: '', imageUrls: '', videoUrl: '', description: '', orderIndex: 0, visible: true };
 
@@ -17,6 +19,8 @@ export default function AdminContentEditor({ kind, dayId }) {
   const [form, setForm] = useState(EMPTY);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -48,6 +52,42 @@ export default function AdminContentEditor({ kind, dayId }) {
     });
   }
 
+  async function handleImageFiles(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    setUploadingImages(true);
+    setError('');
+    try {
+      const urls = await uploadFiles(files, dayId);
+      setForm((f) => ({ ...f, imageUrls: [...splitUrls(f.imageUrls), ...urls].join(', ') }));
+    } catch (err) {
+      setError(err.message || '이미지 업로드에 실패했어요.');
+    } finally {
+      setUploadingImages(false);
+    }
+  }
+
+  async function handleVideoFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingVideo(true);
+    setError('');
+    try {
+      const url = await uploadFile(file, dayId);
+      setForm((f) => ({ ...f, videoUrl: url }));
+    } catch (err) {
+      setError(err.message || '영상 업로드에 실패했어요.');
+    } finally {
+      setUploadingVideo(false);
+    }
+  }
+
+  function removeImageUrl(url) {
+    setForm((f) => ({ ...f, imageUrls: splitUrls(f.imageUrls).filter((u) => u !== url).join(', ') }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.title.trim()) {
@@ -77,6 +117,8 @@ export default function AdminContentEditor({ kind, dayId }) {
     }
   }
 
+  const imagePreviews = splitUrls(form.imageUrls);
+
   return (
     <div>
       <div className="card">
@@ -92,13 +134,37 @@ export default function AdminContentEditor({ kind, dayId }) {
           </div>
           {isLearn && (
             <div className="field">
-              <label>영상 URL (유튜브 또는 드라이브)</label>
+              <label>영상 (파일 업로드 또는 유튜브 URL)</label>
               <input type="text" value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} placeholder="https://youtube.com/..." />
+              <label className="btn btn-outline" style={{ marginTop: 6, display: 'inline-block', cursor: 'pointer' }}>
+                {uploadingVideo ? '업로드 중...' : '내 기기에서 영상 올리기'}
+                <input type="file" accept="video/*" onChange={handleVideoFile} disabled={uploadingVideo} style={{ display: 'none' }} />
+              </label>
             </div>
           )}
           <div className="field">
-            <label>이미지 URL ({isLearn ? '보조' : '본문'}, 여러 장이면 쉼표로 구분)</label>
+            <label>이미지 ({isLearn ? '보조' : '본문'}, 파일 업로드 또는 URL 쉼표 구분)</label>
             <textarea value={form.imageUrls} onChange={(e) => setForm({ ...form, imageUrls: e.target.value })} placeholder="https://.../1.jpg, https://.../2.jpg" />
+            <label className="btn btn-outline" style={{ marginTop: 6, display: 'inline-block', cursor: 'pointer' }}>
+              {uploadingImages ? '업로드 중...' : '내 기기에서 이미지 올리기 (여러 장 가능)'}
+              <input type="file" accept="image/*" multiple onChange={handleImageFiles} disabled={uploadingImages} style={{ display: 'none' }} />
+            </label>
+            {imagePreviews.length > 0 && (
+              <div className="row" style={{ flexWrap: 'wrap', marginTop: 8, gap: 6 }}>
+                {imagePreviews.map((url) => (
+                  <div key={url} style={{ position: 'relative' }}>
+                    <img src={url} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                    <button
+                      type="button"
+                      onClick={() => removeImageUrl(url)}
+                      style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: '#dc2626', color: '#fff', fontSize: 12, cursor: 'pointer', lineHeight: '20px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {isLearn && (
             <div className="field">
@@ -121,7 +187,7 @@ export default function AdminContentEditor({ kind, dayId }) {
           </div>
           {error && <div className="msg msg-error">{error}</div>}
           <div className="row" style={{ marginTop: 4 }}>
-            <button className="btn btn-primary" type="submit" disabled={pending}>
+            <button className="btn btn-primary" type="submit" disabled={pending || uploadingImages || uploadingVideo}>
               {pending ? '저장 중...' : form.id ? '수정 저장' : '추가하기'}
             </button>
             {form.id && (

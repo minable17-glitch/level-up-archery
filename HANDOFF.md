@@ -74,6 +74,7 @@ src/
     api.js                    모든 Supabase RPC 호출 래퍼
     aimCoach.js                조준 보정 로직 (순수 함수, 아래 §5 참고)
     media.js                   유튜브 URL → embed 변환, 쉼표구분 URL 파싱
+    upload.js                  Supabase Storage(`content-uploads` 버킷)로 이미지/영상 파일 업로드 후 공개 URL 반환
   components/
     RoleGate.jsx                 첫 화면 역할 선택(학생/선생님)
     StudentLoginGate.jsx
@@ -131,7 +132,7 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
   - 이 앱은 원래 `minable17-glitch/Mingit1` 저장소의 브랜치 하나로 시작했는데, 그 저장소가 이미 새싹책방의 GitHub Pages 사이트로 쓰이고 있어서 같은 주소를 두고 배포가 서로 덮어쓰는 문제가 있었다. 그래서 이 저장소로 통째로 옮겼다 — 지금은 완전히 독립된 배포 주소를 쓴다.
   - Mingit1 저장소 쪽에는 더 이상 양궁 앱 배포 워크플로가 없어야 한다(옮기면서 지웠음). 혹시 다시 생기면 똑같은 충돌이 날 수 있으니 주의.
 - **앱 아이콘**: `public/icon-192.png`, `public/icon-512.png`가 아직 새싹책방(나무 그림)의 아이콘 그대로 남아있다. `public/favicon.svg`만 과녁 모양으로 교체했다. 실제 배포 전에 학교 쪽에서 양궁 테마 아이콘으로 교체를 권한다.
-- **콘텐츠는 관리자가 직접 입력**: 읽어보기/배워보기 이미지·영상은 교사가 어딘가(구글 드라이브 등)에 올린 뒤 "공유 가능한 URL"을 관리자 화면에 붙여넣는 방식이다. 구글 드라이브 OAuth 업로드 연동은 만들지 않았다(2단계 후보).
+- **콘텐츠 업로드**: 읽어보기/배워보기 이미지·영상, 성찰 문항의 참고 이미지는 이제 관리자 화면에서 **파일을 직접 선택해서 업로드**할 수 있다(Supabase Storage `content-uploads` 버킷, 공개 읽기 + 교사만 업로드 가능한 RLS 정책). URL을 직접 붙여넣는 방식도 여전히 지원한다(유튜브 링크 등). 버킷/정책은 `schema.sql` 맨 아래에 포함되어 있다.
 - **성장 그래프**: `getMyShootingHistory()`로 최근 기록을 가져오는 API는 만들어뒀고 `RecordTab`에서 간단한 리스트로만 보여준다. "성장" 느낌을 살리려면 `/my-records` 스타일의 꺾은선 그래프를 추가하면 좋다(러닝 앱 인수인계서 §8의 제안과 동일한 방향).
 - **사진 증빙/AI 자동인식**: 이번 구현에는 포함하지 않았다. 필요해지면 러닝 앱 인수인계서 §6-6(구글 드라이브 업로드), §6-7(AI는 항상 선택지)의 패턴을 참고할 것.
 - **관리자 학생 삭제/PIN 초기화**: 명세서에 명시되지 않아 이번 버전에는 없다. 필요하면 새싹책방의 `teacher_delete_student`, `teacher_reset_student_pin` RPC 패턴을 그대로 가져오면 된다.
