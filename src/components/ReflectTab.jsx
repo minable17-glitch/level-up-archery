@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getMyReflection, saveReflection, listReflectionQuestions, getMyReflectionAnswers, saveReflectionAnswer } from '../lib/api';
-
-const SKILL_OPTIONS = ['호흡법', '슈팅 루틴', '심상', '기타'];
+import { saveReflection, listReflectionQuestions, getMyReflectionAnswers, saveReflectionAnswer } from '../lib/api';
 
 export default function ReflectTab({ dayId }) {
   const [loading, setLoading] = useState(true);
-  const [usedSkills, setUsedSkills] = useState([]);
-  const [shortNote, setShortNote] = useState('');
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({}); // question_id -> text
   const [pending, setPending] = useState(false);
@@ -16,20 +12,15 @@ export default function ReflectTab({ dayId }) {
     let cancelled = false;
     (async () => {
       try {
-        const [r, qs, myAnswers] = await Promise.all([
-          getMyReflection(dayId).catch(() => null),
+        const [qs, myAnswers] = await Promise.all([
           listReflectionQuestions(dayId),
           getMyReflectionAnswers(dayId).catch(() => []),
         ]);
         if (cancelled) return;
-        if (r) {
-          setUsedSkills(r.used_skills || []);
-          setShortNote(r.short_note || '');
-        }
         setQuestions(qs);
         setAnswers(Object.fromEntries(myAnswers.map((a) => [a.question_id, a.answer_text || ''])));
       } catch {
-        /* 문항을 못 불러와도 심리기법/메모는 계속 작성 가능하게 둠 */
+        /* 문항을 못 불러와도 화면은 계속 보여줌 */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -37,16 +28,12 @@ export default function ReflectTab({ dayId }) {
     return () => { cancelled = true; };
   }, [dayId]);
 
-  function toggleSkill(skill) {
-    setUsedSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]));
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setPending(true);
     setResult(null);
     try {
-      await saveReflection({ dayId, usedSkills, shortNote });
+      await saveReflection({ dayId, usedSkills: [], shortNote: '' });
       await Promise.all(
         questions.map((q) => saveReflectionAnswer(q.id, answers[q.id] || ''))
       );
@@ -64,29 +51,9 @@ export default function ReflectTab({ dayId }) {
     <div className="card">
       <h2>성찰하기</h2>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        이번 일차에 사용한 심리기법과 어려움을 견디고 도전한 경험을 기록해보세요.
+        선생님이 만든 성찰 문항에 답해보세요.
       </p>
       <form onSubmit={handleSubmit}>
-        <div className="field">
-          <label>이번 일차에 사용한 심리기법</label>
-          <div className="pill-row">
-            {SKILL_OPTIONS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`pill ${usedSkills.includes(s) ? 'active' : ''}`}
-                onClick={() => toggleSkill(s)}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="field">
-          <label>집중이 흐트러진 순간과 그때 사용한 방법</label>
-          <textarea value={shortNote} onChange={(e) => setShortNote(e.target.value)} placeholder="한두 줄로 짧게 적어보세요" />
-        </div>
-
         {questions.length === 0 && (
           <p className="muted" style={{ fontSize: 13 }}>선생님이 아직 성찰 문항을 등록하지 않았어요.</p>
         )}
