@@ -77,25 +77,6 @@ export async function logout() {
   await supabase.auth.signOut();
 }
 
-// ── 내 장비 ──────────────────────────────────────────────
-
-export async function saveEquipment({ bowNumber, laneInfo, sightVertical, sightHorizontal, sightNote }) {
-  const { error } = await supabase.rpc('save_equipment', {
-    p_bow_number: bowNumber,
-    p_lane_info: laneInfo,
-    p_sight_vertical: sightVertical,
-    p_sight_horizontal: sightHorizontal,
-    p_sight_note: sightNote,
-  });
-  if (error) throw error;
-}
-
-export async function getMyEquipment() {
-  const { data, error } = await supabase.rpc('get_my_equipment');
-  if (error) throw error;
-  return data?.[0] || null;
-}
-
 // ── 일차 ──────────────────────────────────────────────────
 
 export async function listDays(classId) {
@@ -165,6 +146,7 @@ export async function saveShootingLog(payload) {
     p_bow_number: payload.bowNumber,
     p_markers: payload.markers,
     p_hit_count: payload.hitCount,
+    p_miss_count: payload.missCount || 0,
     p_group_center_x: null,
     p_group_center_y: null,
     p_aim_advice: null,

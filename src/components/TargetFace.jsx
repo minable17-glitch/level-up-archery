@@ -8,7 +8,7 @@ const RINGS = [
   { pct: 20, color: '#f4c430', border: '#f4c430' },
 ];
 
-const MAX_MARKERS = 10;
+const MAX_MARKERS = 50;
 const OUT_OF_FACE_DISTANCE = 1.15;
 
 export default function TargetFace({ markers, onAddMarker }) {

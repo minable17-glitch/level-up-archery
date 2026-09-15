@@ -172,6 +172,8 @@ create table reflection_answers (
   unique (student_id, question_id)
 );
 
+alter table shooting_logs add column if not exists miss_count int not null default 0;
+
 create index if not exists idx_students_class on students(class_id);
 create index if not exists idx_shooting_logs_class on shooting_logs(class_id, created_at desc);
 create index if not exists idx_reflections_class on reflections(class_id, created_at desc);
@@ -240,6 +242,7 @@ drop function if exists save_reflection_answer(uuid, date, text);
 drop function if exists get_my_reflection_answers(date);
 drop function if exists save_shooting_log(date, text, text, jsonb, int, numeric, numeric, text, text, text);
 drop function if exists get_my_shooting_log(date);
+drop function if exists get_my_shooting_log(uuid);
 drop function if exists get_my_shooting_history(int);
 
 -- ── 교사 계정: 가입 / 로그인 / 아이디 찾기 / 비밀번호 재설정 ──────
@@ -529,7 +532,8 @@ create or replace function save_shooting_log(
   p_day_id uuid, p_bow_number text,
   p_markers jsonb, p_hit_count int,
   p_group_center_x numeric, p_group_center_y numeric,
-  p_aim_advice text, p_sight_before text, p_sight_after text
+  p_aim_advice text, p_sight_before text, p_sight_after text,
+  p_miss_count int default 0
 ) returns void
 language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -547,19 +551,20 @@ begin
 
   insert into shooting_logs (
     student_id, day_id, class_id, class_name, student_name, student_number, day_title,
-    bow_number, markers, hit_count,
+    bow_number, markers, hit_count, miss_count,
     group_center_x, group_center_y, aim_advice, sight_before, sight_after
   ) values (
     v_student.id, p_day_id, v_student.class_id,
     (select name from classes where classes.id = v_student.class_id),
     v_student.name, v_student.student_number, v_day.title,
-    p_bow_number, coalesce(p_markers, '[]'::jsonb), coalesce(p_hit_count, 0),
+    p_bow_number, coalesce(p_markers, '[]'::jsonb), coalesce(p_hit_count, 0), coalesce(p_miss_count, 0),
     p_group_center_x, p_group_center_y, p_aim_advice, p_sight_before, p_sight_after
   )
   on conflict (student_id, day_id) do update set
     bow_number = excluded.bow_number,
     markers = excluded.markers,
     hit_count = excluded.hit_count,
+    miss_count = excluded.miss_count,
     group_center_x = excluded.group_center_x,
     group_center_y = excluded.group_center_y,
     aim_advice = excluded.aim_advice,
@@ -567,18 +572,14 @@ begin
     sight_after = excluded.sight_after;
 end;
 $$;
-grant execute on function save_shooting_log(uuid, text, jsonb, int, numeric, numeric, text, text, text) to anon, authenticated;
+grant execute on function save_shooting_log(uuid, text, jsonb, int, numeric, numeric, text, text, text, int) to anon, authenticated;
 
 create or replace function get_my_shooting_log(p_day_id uuid)
-returns table(
-  bow_number text, markers jsonb, hit_count int,
-  group_center_x numeric, group_center_y numeric, aim_advice text, sight_before text, sight_after text
-)
+returns table(bow_number text, markers jsonb, hit_count int, miss_count int)
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   return query
-    select l.bow_number, l.markers, l.hit_count,
-           l.group_center_x, l.group_center_y, l.aim_advice, l.sight_before, l.sight_after
+    select l.bow_number, l.markers, l.hit_count, l.miss_count
     from shooting_logs l
     join students s on s.id = l.student_id
     where s.auth_user_id = auth.uid() and l.day_id = p_day_id;
@@ -587,11 +588,11 @@ $$;
 grant execute on function get_my_shooting_log(uuid) to anon, authenticated;
 
 create or replace function get_my_shooting_history(p_limit int default 10)
-returns table(day_id uuid, day_title text, hit_count int, created_at timestamptz)
+returns table(day_id uuid, day_title text, hit_count int, miss_count int, created_at timestamptz)
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   return query
-    select l.day_id, l.day_title, l.hit_count, l.created_at
+    select l.day_id, l.day_title, l.hit_count, l.miss_count, l.created_at
     from shooting_logs l
     join students s on s.id = l.student_id
     where s.auth_user_id = auth.uid()

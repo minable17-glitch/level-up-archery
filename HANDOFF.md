@@ -42,14 +42,13 @@ VITE_SUPABASE_ANON_KEY=
 RoleGate   "역할을 선택하세요" — 학생으로 로그인 / 선생님으로 로그인
   ├ 학생으로 로그인
   │  StudentLoginGate   학급 코드 + 학번 + 이름 + PIN(4자리) 로그인 (최초 로그인 = 자동 등록)
-  │    └ 하단 탭 2개
-  │        내 장비   활 번호 · 조/사대 위치만 저장 (사이트 세팅 필드는 제거됨, 일차와 무관, 학생당 1건)
-  │        일차     DayList(일차 목록) → 일차 선택 → DayView
-  │                   DayView 안에 STEP 1~4 pill 네비게이션
-  │                     STEP 1 읽어보기   이미지 콘텐츠 카드 목록 → 상세(이미지 세로 스크롤)
-  │                     STEP 2 배워보기   영상(유튜브 embed/직접 재생) + 이미지 + 설명, 박스 호흡 타이머 포함
-  │                     STEP 3 기록하기   활 번호 입력 + 과녁 탭 마커 기록 + 명중 수 자동 집계 (조준 보정 코치는 제거됨)
-  │                     STEP 4 성찰하기   교사가 만든 성찰 문항에 답변만 (심리기법 체크·짧은 메모는 제거됨, 일차당 1건 업서트)
+  │    └ 로그인하면 바로 DayList(일차 목록)로 진입 (하단 탭 없음 — "내 장비" 탭은 삭제됨)
+  │         일차 선택 → DayView, 안에 STEP 1~4 pill 네비게이션
+  │           STEP 1 읽어보기   이미지 콘텐츠 카드 목록 → 상세(이미지 세로 스크롤)
+  │           STEP 2 배워보기   영상(유튜브 embed/직접 재생) + 이미지 + 설명, 박스 호흡 타이머 포함
+  │           STEP 3 기록하기   활 번호를 이 화면에서 직접 입력 + 과녁 탭 마커 기록(최대 50발) +
+  │                             "빗나간 화살 수" +/- 스테퍼로 "총 N발 중 M발 명중" 집계 (조준 보정 코치는 제거됨)
+  │           STEP 4 성찰하기   교사가 만든 성찰 문항에 답변만 (심리기법 체크·짧은 메모는 제거됨, 일차당 1건 업서트)
   └ 선생님으로 로그인 → AdminTab
        AuthScreen       아이디/비밀번호 로그인, 계정 만들기, 아이디 찾기(이메일), 비밀번호 찾기(아이디+이메일)
        ClassPicker      로그인한 교사가 만든 학급 목록 + 새 학급 만들기 (교사 1명이 여러 학급 가능)
@@ -65,7 +64,7 @@ RoleGate   "역할을 선택하세요" — 학생으로 로그인 / 선생님으
 
 ```
 src/
-  App.jsx                     세션 상태 + 하단 탭 네비게이션 셸
+  App.jsx                     세션 상태 + 로그인 후 DayList/DayView 전환 (하단 탭·"내 장비" 탭은 삭제됨)
   index.css                   디자인 토큰(CSS 변수) + 유틸리티 클래스 (인라인 스타일 대신 클래스 사용)
   lib/
     supabaseClient.js         Supabase 클라이언트 (그대로 재사용 가능한 범용 코드)
@@ -77,12 +76,11 @@ src/
   components/
     RoleGate.jsx                 첫 화면 역할 선택(학생/선생님)
     StudentLoginGate.jsx
-    EquipmentTab.jsx              활 번호 · 조/사대 위치만 (사이트 세팅 필드 제거됨)
-    DayList.jsx                  학생용 일차 목록 (classId → 일차 카드 리스트)
-    DayView.jsx                  학생용 일차 상세: STEP1~4 pill 네비게이션 + Read/Learn/Record/ReflectTab을 dayId로 렌더 (equipment는 활 번호 프리필용으로만 전달, 더 이상 게이트 아님)
+    DayList.jsx                  학생용 일차 목록 (classId → 일차 카드 리스트, 로그인 직후 바로 보임)
+    DayView.jsx                  학생용 일차 상세: STEP1~4 pill 네비게이션 + Read/Learn/Record/ReflectTab을 dayId로 렌더
     ReadTab.jsx / LearnTab.jsx    dayId prop 기준으로 콘텐츠 조회 (이전엔 classId 기준)
-    TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어). 마커는 pointer-events:none이라 탭해도 지워지지 않음 — 삭제는 RecordTab의 "마지막 취소"/"전체 지우기" 버튼으로만 가능
-    RecordTab.jsx                 기록하기 화면 본체 (dayId prop, 활 번호를 이 화면에서 직접 입력, 장비 등록 없이 바로 진입 가능, 일차당 1건 업서트, 조준 보정 코치 제거됨)
+    TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어), MAX_MARKERS=50. 마커는 pointer-events:none이라 탭해도 지워지지 않음 — 삭제는 RecordTab의 "마지막 취소"/"전체 지우기" 버튼으로만 가능
+    RecordTab.jsx                 기록하기 화면 본체 (dayId prop, 활 번호를 이 화면에서 직접 입력, 장비 등록 개념 없음, 명중 마커 + "빗나간 화살 수" 스테퍼로 총 발수/명중 집계, 일차당 1건 업서트, 조준 보정 코치 제거됨)
     BoxBreathing.jsx              박스 호흡(4-4-4-4) 타이머 위젯
     ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트)
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
@@ -105,10 +103,10 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 | `teachers` | 교사 계정: 아이디(unique)+비밀번호 해시+이메일, `auth_user_id`로 현재 익명 세션과 연결 |
 | `classes` | 학급 이름, 학급 코드(학생용), `teacher_id`로 소유 교사 연결 |
 | `students` | 학번+이름+PIN해시, `auth_user_id`로 현재 익명 세션과 연결 |
-| `equipment` | 학생별 활 번호·조/사대 (student_id가 PK, upsert). `sight_vertical`/`sight_horizontal`/`sight_note` 컬럼은 DB엔 남아있지만 프런트엔드에서 더 이상 읽거나 쓰지 않음(항상 null로 저장) |
+| `equipment` | **더 이상 프런트엔드에서 쓰지 않음** — "내 장비" 탭을 통째로 없앴다. 테이블/`save_equipment`/`get_my_equipment` RPC는 DB에 남아있지만(호출하는 코드 없음, 데이터 손실 없이 안전하게 방치) 활 번호는 이제 `shooting_logs.bow_number`에 기록 시점마다 직접 입력됨 |
 | `days` | **(v3 신규)** 학급 안의 "일차". `class_id` 소유, `order_index`로 정렬, `title` |
 | `read_contents` / `learn_contents` | 교사가 등록하는 콘텐츠. **(v3) `day_id` 소유로 변경**(이전엔 `class_id`). 이미지 URL은 쉼표로 여러 개, 학생에게는 `visible=true`만 노출 |
-| `shooting_logs` | 학생당 일차 1건(`unique(student_id, day_id)`) 탄착 마커·명중수. `group_center_x/y`/`aim_advice`/`sight_before`/`sight_after` 컬럼은 남아있지만 조준 보정 코치 제거 이후 항상 null. `day_title` 등 조회 편의용 비정규화 컬럼 포함 |
+| `shooting_logs` | 학생당 일차 1건(`unique(student_id, day_id)`) 탄착 마커·명중수(`hit_count`)·빗나간 화살 수(`miss_count`, 신규). 총 발수는 `hit_count + miss_count`로 계산. `group_center_x/y`/`aim_advice`/`sight_before`/`sight_after` 컬럼은 남아있지만 조준 보정 코치 제거 이후 항상 null. `day_title` 등 조회 편의용 비정규화 컬럼 포함 |
 | `reflections` | 학생당 일차 1건(`unique(student_id, day_id)`). `used_skills`/`short_note` 컬럼은 남아있지만 학생 화면에서 UI가 빠져서 항상 빈 값(`{}`/null)으로 저장됨 — 이 행 자체는 성찰 문항 답변을 관리자 화면에 묶어 보여주기 위한 뼈대로 계속 저장됨 |
 | `reflection_questions` | 교사가 **일차별로** 만드는 성찰 문항 (러닝앱의 day_questions 대응, **v3에서 `class_id`→`day_id` 소유로 변경**) |
 | `reflection_answers` | 학생별·문항별 답변 (`unique(student_id, question_id)`, **v3에서 `log_date` 제거** — 문항 자체가 일차에 속하므로 날짜가 불필요해짐) |

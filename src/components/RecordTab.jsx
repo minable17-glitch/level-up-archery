@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import TargetFace, { MAX_MARKERS } from './TargetFace';
 import { getMyShootingLog, getMyShootingHistory, saveShootingLog } from '../lib/api';
 
-export default function RecordTab({ dayId, equipment }) {
-  const [bowNumber, setBowNumber] = useState(equipment?.bowNumber || '');
+export default function RecordTab({ dayId }) {
+  const [bowNumber, setBowNumber] = useState('');
   const [markers, setMarkers] = useState([]);
+  const [missCount, setMissCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState(null);
@@ -18,6 +19,7 @@ export default function RecordTab({ dayId, equipment }) {
         if (cancelled) return;
         if (log) {
           setMarkers(Array.isArray(log.markers) ? log.markers : []);
+          setMissCount(log.miss_count || 0);
           if (log.bow_number) setBowNumber(log.bow_number);
         }
         setHistory(hist.filter((h) => h.day_id !== dayId));
@@ -41,6 +43,8 @@ export default function RecordTab({ dayId, equipment }) {
     setMarkers([]);
   }
 
+  const totalShots = markers.length + missCount;
+
   async function handleSave() {
     if (!bowNumber.trim()) {
       setResult({ ok: false, error: '활 번호를 입력해주세요.' });
@@ -54,6 +58,7 @@ export default function RecordTab({ dayId, equipment }) {
         bowNumber: bowNumber.trim(),
         markers,
         hitCount: markers.length,
+        missCount,
       });
       setResult({ ok: true });
     } catch (err) {
@@ -81,7 +86,7 @@ export default function RecordTab({ dayId, equipment }) {
         </p>
         <TargetFace markers={markers} onAddMarker={addMarker} />
         <div className="hit-count">
-          명중 <b>{markers.length}</b> / {MAX_MARKERS} 발
+          총 <b>{totalShots}</b>발 중 <b>{markers.length}</b>발 명중
         </div>
         <div className="row center" style={{ justifyContent: 'center', marginBottom: 12 }}>
           <button className="btn btn-outline" type="button" onClick={undoLast} disabled={markers.length === 0}>
@@ -91,6 +96,20 @@ export default function RecordTab({ dayId, equipment }) {
             전체 지우기
           </button>
         </div>
+
+        <div className="field">
+          <label>빗나간 화살 수 (과녁을 완전히 벗어난 경우)</label>
+          <div className="row center" style={{ justifyContent: 'center', gap: 12 }}>
+            <button className="btn btn-outline" type="button" onClick={() => setMissCount((n) => Math.max(0, n - 1))} disabled={missCount === 0}>
+              −
+            </button>
+            <b style={{ fontSize: 18, minWidth: 24, textAlign: 'center' }}>{missCount}</b>
+            <button className="btn btn-outline" type="button" onClick={() => setMissCount((n) => n + 1)}>
+              +
+            </button>
+          </div>
+        </div>
+
         {result && !result.ok && <div className="msg msg-error">{result.error}</div>}
         {result && result.ok && <div className="msg msg-ok">저장했어요.</div>}
         <button className="btn btn-primary btn-block" type="button" onClick={handleSave} disabled={pending} style={{ marginTop: 4 }}>
@@ -104,7 +123,7 @@ export default function RecordTab({ dayId, equipment }) {
           {history.map((h) => (
             <div className="list-row" key={h.day_id}>
               <span>{h.day_title}</span>
-              <span className="muted">명중 {h.hit_count}발</span>
+              <span className="muted">총 {h.hit_count + (h.miss_count || 0)}발 중 {h.hit_count}발 명중</span>
             </div>
           ))}
         </div>

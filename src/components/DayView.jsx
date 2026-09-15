@@ -11,7 +11,7 @@ const STEPS = [
   { key: 'reflect', label: 'STEP 4 성찰하기' },
 ];
 
-export default function DayView({ day, equipment, onBack }) {
+export default function DayView({ day, onBack }) {
   const [step, setStep] = useState('read');
 
   return (
@@ -32,9 +32,7 @@ export default function DayView({ day, equipment, onBack }) {
 
       {step === 'read' && <ReadTab key={day.id} dayId={day.id} />}
       {step === 'learn' && <LearnTab key={day.id} dayId={day.id} />}
-      {step === 'record' && (
-        <RecordTab key={day.id} dayId={day.id} equipment={equipment} />
-      )}
+      {step === 'record' && <RecordTab key={day.id} dayId={day.id} />}
       {step === 'reflect' && <ReflectTab key={day.id} dayId={day.id} />}
     </div>
   );
