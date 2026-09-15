@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
-import { adminListStudents, adminListShootingLogs, adminListReflections } from '../lib/api';
+import {
+  adminListStudents, adminListShootingLogs, adminListReflections,
+  adminListReflectionQuestions, adminListReflectionAnswers,
+} from '../lib/api';
 
 export default function AdminRecords({ classId }) {
   const [students, setStudents] = useState([]);
   const [logs, setLogs] = useState([]);
   const [reflections, setReflections] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -13,15 +18,19 @@ export default function AdminRecords({ classId }) {
     (async () => {
       setLoading(true);
       try {
-        const [s, l, r] = await Promise.all([
+        const [s, l, r, q, a] = await Promise.all([
           adminListStudents(classId),
           adminListShootingLogs(classId),
           adminListReflections(classId),
+          adminListReflectionQuestions(classId),
+          adminListReflectionAnswers(classId),
         ]);
         if (cancelled) return;
         setStudents(s);
         setLogs(l);
         setReflections(r);
+        setQuestions(q);
+        setAnswers(a);
       } catch (err) {
         if (!cancelled) setError(err.message || '기록을 불러오지 못했어요.');
       } finally {
@@ -30,6 +39,13 @@ export default function AdminRecords({ classId }) {
     })();
     return () => { cancelled = true; };
   }, [classId]);
+
+  const questionTextById = Object.fromEntries(questions.map((q) => [q.id, q.question_text]));
+  const answersByStudentDate = {};
+  for (const a of answers) {
+    const key = `${a.student_id}__${a.log_date}`;
+    (answersByStudentDate[key] ||= []).push(a);
+  }
 
   if (loading) return <div className="card center muted">불러오는 중...</div>;
   if (error) return <div className="card msg msg-error">{error}</div>;
@@ -102,9 +118,12 @@ export default function AdminRecords({ classId }) {
               </div>
             )}
             {r.short_note && <div className="muted">메모: {r.short_note}</div>}
-            {r.endure && <div>① 인내·도전: {r.endure}</div>}
-            {r.regulate && <div>② 자기조절: {r.regulate}</div>}
-            {r.life_link && <div>③ 삶 연계: {r.life_link}</div>}
+            {(answersByStudentDate[`${r.student_id}__${r.log_date}`] || []).map((a) => (
+              <div key={a.id}>
+                <b>{questionTextById[a.question_id] || '(삭제된 문항)'}</b>
+                <div className="muted">{a.answer_text}</div>
+              </div>
+            ))}
           </div>
         ))}
       </div>

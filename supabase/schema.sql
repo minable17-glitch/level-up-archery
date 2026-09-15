@@ -633,3 +633,210 @@ begin
 end;
 $$;
 grant execute on function admin_list_reflections(uuid, int) to anon, authenticated;
+
+-- ── 학급 코드 수정 ──────────────────────────────────────
+
+create or replace function admin_update_class_code(p_class_id uuid, p_new_code text)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_code text;
+begin
+  perform assert_class_owner(p_class_id);
+  v_code := upper(trim(p_new_code));
+  if v_code !~ '^[A-Z0-9]{4,12}$' then
+    raise exception '학급 코드는 영문 대문자/숫자 4~12자로 입력해주세요';
+  end if;
+  if exists (select 1 from classes c where c.code = v_code and c.id <> p_class_id) then
+    raise exception '이미 사용 중인 학급 코드예요';
+  end if;
+  update classes set code = v_code where classes.id = p_class_id;
+end;
+$$;
+grant execute on function admin_update_class_code(uuid, text) to anon, authenticated;
+
+-- ── 성찰 문항 (교사가 자유롭게 추가/수정/삭제) ──────────────
+
+create table if not exists reflection_questions (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid not null references classes(id) on delete cascade,
+  question_text text not null,
+  activity_sheet_url text,
+  order_index int not null default 0,
+  visible boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_reflection_questions_class on reflection_questions(class_id, order_index);
+alter table reflection_questions enable row level security;
+drop policy if exists reflection_questions_select_visible on reflection_questions;
+create policy reflection_questions_select_visible on reflection_questions for select using (visible = true);
+grant select on reflection_questions to anon, authenticated;
+
+create table if not exists reflection_answers (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references students(id) on delete cascade,
+  class_id uuid not null references classes(id) on delete cascade,
+  question_id uuid not null references reflection_questions(id) on delete cascade,
+  class_name text,
+  student_name text,
+  student_number text,
+  log_date date not null,
+  answer_text text,
+  created_at timestamptz not null default now(),
+  unique (student_id, question_id, log_date)
+);
+create index if not exists idx_reflection_answers_class on reflection_answers(class_id, log_date desc);
+alter table reflection_answers enable row level security;
+
+-- 예전 버전의 고정 성찰 문항(인내/자기조절/삶연계) 컬럼은 더 이상 안 씀 —
+-- 이제 교사가 만든 문항(reflection_questions/reflection_answers)으로 대체됨.
+alter table reflections drop column if exists endure;
+alter table reflections drop column if exists regulate;
+alter table reflections drop column if exists life_link;
+
+drop function if exists save_reflection(date, text[], text, text, text, text);
+drop function if exists get_my_reflection(date);
+
+create or replace function save_reflection(p_log_date date, p_used_skills text[], p_short_note text)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_student students%rowtype;
+  v_class classes%rowtype;
+begin
+  select * into v_student from students where students.auth_user_id = auth.uid();
+  if not found then
+    raise exception '로그인 정보를 찾을 수 없어요. 다시 로그인해주세요';
+  end if;
+  select * into v_class from classes where classes.id = v_student.class_id;
+
+  insert into reflections (
+    student_id, class_id, class_name, student_name, student_number,
+    log_date, used_skills, short_note
+  ) values (
+    v_student.id, v_student.class_id, v_class.name, v_student.name, v_student.student_number,
+    p_log_date, coalesce(p_used_skills, '{}'), p_short_note
+  )
+  on conflict (student_id, log_date) do update set
+    used_skills = excluded.used_skills,
+    short_note = excluded.short_note;
+end;
+$$;
+grant execute on function save_reflection(date, text[], text) to anon, authenticated;
+
+create or replace function get_my_reflection(p_log_date date)
+returns table(log_date date, used_skills text[], short_note text)
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  return query
+    select r.log_date, r.used_skills, r.short_note
+    from reflections r
+    join students s on s.id = r.student_id
+    where s.auth_user_id = auth.uid() and r.log_date = p_log_date;
+end;
+$$;
+grant execute on function get_my_reflection(date) to anon, authenticated;
+
+create or replace function save_reflection_answer(p_question_id uuid, p_log_date date, p_answer_text text)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_student students%rowtype;
+  v_class classes%rowtype;
+  v_question reflection_questions%rowtype;
+begin
+  select * into v_student from students where students.auth_user_id = auth.uid();
+  if not found then
+    raise exception '로그인 정보를 찾을 수 없어요. 다시 로그인해주세요';
+  end if;
+  select * into v_question from reflection_questions where reflection_questions.id = p_question_id;
+  if not found or v_question.class_id <> v_student.class_id then
+    raise exception '문항을 찾을 수 없어요';
+  end if;
+  select * into v_class from classes where classes.id = v_student.class_id;
+
+  insert into reflection_answers (
+    student_id, class_id, question_id, class_name, student_name, student_number,
+    log_date, answer_text
+  ) values (
+    v_student.id, v_student.class_id, p_question_id, v_class.name, v_student.name, v_student.student_number,
+    p_log_date, p_answer_text
+  )
+  on conflict (student_id, question_id, log_date) do update set
+    answer_text = excluded.answer_text;
+end;
+$$;
+grant execute on function save_reflection_answer(uuid, date, text) to anon, authenticated;
+
+create or replace function get_my_reflection_answers(p_log_date date)
+returns table(question_id uuid, answer_text text)
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  return query
+    select a.question_id, a.answer_text
+    from reflection_answers a
+    join students s on s.id = a.student_id
+    where s.auth_user_id = auth.uid() and a.log_date = p_log_date;
+end;
+$$;
+grant execute on function get_my_reflection_answers(date) to anon, authenticated;
+
+-- ── 관리자: 성찰 문항 관리 ────────────────────────────────
+
+create or replace function admin_list_reflection_questions(p_class_id uuid)
+returns setof reflection_questions
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_class_owner(p_class_id);
+  return query select * from reflection_questions where reflection_questions.class_id = p_class_id order by order_index, created_at;
+end;
+$$;
+grant execute on function admin_list_reflection_questions(uuid) to anon, authenticated;
+
+create or replace function admin_upsert_reflection_question(
+  p_class_id uuid, p_id uuid,
+  p_question_text text, p_activity_sheet_url text, p_order_index int, p_visible boolean
+) returns uuid
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_id uuid;
+begin
+  perform assert_class_owner(p_class_id);
+  if coalesce(trim(p_question_text), '') = '' then
+    raise exception '문항 내용을 입력해주세요';
+  end if;
+  if p_id is null then
+    insert into reflection_questions (class_id, question_text, activity_sheet_url, order_index, visible)
+    values (p_class_id, p_question_text, p_activity_sheet_url, coalesce(p_order_index, 0), coalesce(p_visible, true))
+    returning reflection_questions.id into v_id;
+  else
+    update reflection_questions set
+      question_text = p_question_text, activity_sheet_url = p_activity_sheet_url,
+      order_index = coalesce(p_order_index, 0), visible = coalesce(p_visible, true)
+    where reflection_questions.id = p_id and reflection_questions.class_id = p_class_id
+    returning reflection_questions.id into v_id;
+  end if;
+  return v_id;
+end;
+$$;
+grant execute on function admin_upsert_reflection_question(uuid, uuid, text, text, int, boolean) to anon, authenticated;
+
+create or replace function admin_delete_reflection_question(p_class_id uuid, p_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_class_owner(p_class_id);
+  delete from reflection_questions where reflection_questions.id = p_id and reflection_questions.class_id = p_class_id;
+end;
+$$;
+grant execute on function admin_delete_reflection_question(uuid, uuid) to anon, authenticated;
+
+create or replace function admin_list_reflection_answers(p_class_id uuid, p_limit int default 500)
+returns setof reflection_answers
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_class_owner(p_class_id);
+  return query select * from reflection_answers where reflection_answers.class_id = p_class_id order by log_date desc, created_at desc limit p_limit;
+end;
+$$;
+grant execute on function admin_list_reflection_answers(uuid, int) to anon, authenticated;

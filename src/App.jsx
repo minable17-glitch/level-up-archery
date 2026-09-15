@@ -109,7 +109,7 @@ export default function App() {
           <RecordTab equipment={equipment} onGoToEquipment={() => setActiveTab('equipment')} />
         )}
         {activeTab === 'record' && !equipmentLoaded && <div className="card center muted">불러오는 중...</div>}
-        {activeTab === 'reflect' && <ReflectTab />}
+        {activeTab === 'reflect' && <ReflectTab classId={student.classId} />}
       </div>
       <div className="bottom-nav">
         {TABS.map((t) => (

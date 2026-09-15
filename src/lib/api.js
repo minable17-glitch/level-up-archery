@@ -56,6 +56,11 @@ export async function getMyClasses() {
   return data || [];
 }
 
+export async function adminUpdateClassCode(classId, newCode) {
+  const { error } = await supabase.rpc('admin_update_class_code', { p_class_id: classId, p_new_code: newCode });
+  if (error) throw error;
+}
+
 export async function studentLogin({ classCode, studentNumber, name, pin }) {
   await ensureFreshAnonSession();
   const { data, error } = await supabase.rpc('student_login', {
@@ -147,14 +152,22 @@ export async function getMyShootingHistory(limit = 10) {
 
 // ── 성찰하기 ──────────────────────────────────────────────
 
+export async function listReflectionQuestions(classId) {
+  const { data, error } = await supabase
+    .from('reflection_questions')
+    .select('*')
+    .eq('class_id', classId)
+    .eq('visible', true)
+    .order('order_index', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function saveReflection(payload) {
   const { error } = await supabase.rpc('save_reflection', {
     p_log_date: payload.logDate,
     p_used_skills: payload.usedSkills,
     p_short_note: payload.shortNote,
-    p_endure: payload.endure,
-    p_regulate: payload.regulate,
-    p_life_link: payload.lifeLink,
   });
   if (error) throw error;
 }
@@ -163,6 +176,21 @@ export async function getMyReflection(logDate) {
   const { data, error } = await supabase.rpc('get_my_reflection', { p_log_date: logDate });
   if (error) throw error;
   return data?.[0] || null;
+}
+
+export async function saveReflectionAnswer(questionId, logDate, answerText) {
+  const { error } = await supabase.rpc('save_reflection_answer', {
+    p_question_id: questionId,
+    p_log_date: logDate,
+    p_answer_text: answerText,
+  });
+  if (error) throw error;
+}
+
+export async function getMyReflectionAnswers(logDate) {
+  const { data, error } = await supabase.rpc('get_my_reflection_answers', { p_log_date: logDate });
+  if (error) throw error;
+  return data || [];
 }
 
 // ── 관리자 (지금 로그인한 교사가 학급 소유자인지는 서버에서 확인) ──
@@ -233,6 +261,36 @@ export async function adminListShootingLogs(classId, limit = 300) {
 
 export async function adminListReflections(classId, limit = 300) {
   const { data, error } = await supabase.rpc('admin_list_reflections', { p_class_id: classId, p_limit: limit });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function adminListReflectionQuestions(classId) {
+  const { data, error } = await supabase.rpc('admin_list_reflection_questions', { p_class_id: classId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function adminUpsertReflectionQuestion(classId, question) {
+  const { data, error } = await supabase.rpc('admin_upsert_reflection_question', {
+    p_class_id: classId,
+    p_id: question.id || null,
+    p_question_text: question.questionText,
+    p_activity_sheet_url: question.activitySheetUrl,
+    p_order_index: question.orderIndex ?? 0,
+    p_visible: question.visible ?? true,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function adminDeleteReflectionQuestion(classId, id) {
+  const { error } = await supabase.rpc('admin_delete_reflection_question', { p_class_id: classId, p_id: id });
+  if (error) throw error;
+}
+
+export async function adminListReflectionAnswers(classId, limit = 500) {
+  const { data, error } = await supabase.rpc('admin_list_reflection_answers', { p_class_id: classId, p_limit: limit });
   if (error) throw error;
   return data || [];
 }

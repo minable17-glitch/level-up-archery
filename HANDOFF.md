@@ -45,11 +45,13 @@ RoleGate   "역할을 선택하세요" — 학생으로 로그인 / 선생님으
   │        읽어보기    이미지 콘텐츠 카드 목록 → 상세(이미지 세로 스크롤)
   │        배워보기    영상(유튜브 embed 또는 직접 재생) + 이미지 + 설명, 박스 호흡 타이머 포함
   │        기록하기    과녁 탭 마커 기록 + 명중 수 자동 집계 + 조준 보정 코치 (핵심 기능)
-  │        성찰하기    심리기법 체크 + 인내/자기조절/삶연계 서술형 (매일 업서트)
+  │        성찰하기    심리기법 체크 + 짧은 기록 + 교사가 만든 성찰 문항에 답변 (매일 업서트)
   └ 선생님으로 로그인 → AdminTab
        AuthScreen    아이디/비밀번호 로그인, 계정 만들기, 아이디 찾기(이메일), 비밀번호 찾기(아이디+이메일)
        ClassPicker   로그인한 교사가 만든 학급 목록 + 새 학급 만들기 (교사 1명이 여러 학급 가능)
-       학급 선택 후  읽어보기/배워보기 콘텐츠 CRUD, 학생 명단·슈팅 기록·성찰 기록 조회
+       학급 선택 후  4개 서브탭 — 학생·기록 / 읽어보기 관리 / 배워보기 관리 / 성찰하기 관리
+                    (성찰하기 관리 = 문항 추가·수정·삭제, 러닝앱의 day_questions 관리 화면을 참고해서 만듦)
+                    헤더에서 학급 코드도 직접 수정 가능
 ```
 
 학생 화면 상단에도 작은 "관리자" 버튼이 있어서 로그아웃 없이 바로 관리자 화면으로 전환할 수 있다(같은 기기를 교사가 테스트할 때 편하도록).
@@ -78,7 +80,8 @@ src/
     ReflectTab.jsx
     AdminTab.jsx                 교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸
     AdminContentEditor.jsx       읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화)
-    AdminRecords.jsx             학생/슈팅기록/성찰기록 조회
+    AdminReflectionEditor.jsx    성찰 문항 CRUD (학급별로 교사가 자유롭게 문항 추가/수정/삭제)
+    AdminRecords.jsx             학생/슈팅기록/성찰기록(답변 포함) 조회
 
 supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Editor에서 실행)
 ```
@@ -102,7 +105,9 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 | `equipment` | 학생별 활 번호·조/사대·사이트 세팅 (student_id가 PK, upsert) |
 | `read_contents` / `learn_contents` | 교사가 등록하는 콘텐츠 (이미지 URL은 쉼표로 여러 개, 학생에게는 `visible=true`만 노출) |
 | `shooting_logs` | 회차별(학생당 하루 1건, `unique(student_id, log_date)`) 탄착 마커·명중수·조준보정 문구·사이트 전/후 |
-| `reflections` | 회차별(학생당 하루 1건) 성찰 기록 |
+| `reflections` | 회차별(학생당 하루 1건) 심리기법 체크 + 짧은 기록 |
+| `reflection_questions` | 교사가 학급별로 만드는 성찰 문항 (러닝앱의 day_questions 대응, class_id 소유) |
+| `reflection_answers` | 학생별·문항별·날짜별 답변 (`unique(student_id, question_id, log_date)`) |
 
 **보안 설계**: 모든 테이블에 RLS를 켜두고, `read_contents`/`learn_contents`의 "visible=true row만 select" 정책 외에는 **직접 테이블 접근을 전부 막는다**. 모든 읽기/쓰기는 SECURITY DEFINER RPC 함수를 통해서만 하고, 함수 내부에서 `auth.uid()`로 신원(학생 또는 교사)을 확인한다. 관리자 함수들은 `assert_class_owner(p_class_id)`로 "지금 로그인한 교사가 이 학급의 `teacher_id`와 일치하는가"만 확인한다. 이 패턴(익명 인증 + SECURITY DEFINER RPC + RLS)은 새싹책방 앱에서 실제로 검증된 방식을 그대로 따른 것이다.
 

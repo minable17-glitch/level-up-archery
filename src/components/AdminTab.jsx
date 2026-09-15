@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
   teacherSignup, teacherLogin, teacherFindUsername, teacherResetPassword,
-  createClass, getMyClasses, logout as apiLogout,
+  createClass, getMyClasses, adminUpdateClassCode, logout as apiLogout,
 } from '../lib/api';
 import { getTeacherSession, setTeacherSession, clearTeacherSession } from '../lib/session';
 import AdminContentEditor from './AdminContentEditor';
+import AdminReflectionEditor from './AdminReflectionEditor';
 import AdminRecords from './AdminRecords';
 
 const SUB_TABS = [
   { key: 'records', label: '학생·기록' },
   { key: 'read', label: '읽어보기 관리' },
   { key: 'learn', label: '배워보기 관리' },
+  { key: 'reflect', label: '성찰하기 관리' },
 ];
 
 function AuthScreen({ onLoggedIn, onExit }) {
@@ -310,6 +312,57 @@ function ClassPicker({ onSelect, onLogout }) {
   );
 }
 
+function ClassCodeEditor({ classId, code, onUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(code);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setValue(code); setError(''); setEditing(true); }}
+        style={{ background: 'none', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', borderRadius: 8, padding: '2px 8px', fontSize: 12, cursor: 'pointer' }}
+      >
+        코드 {code} · 수정
+      </button>
+    );
+  }
+
+  async function handleSave() {
+    setPending(true);
+    setError('');
+    try {
+      await adminUpdateClassCode(classId, value.trim());
+      onUpdated(value.trim().toUpperCase());
+      setEditing(false);
+    } catch (err) {
+      setError(err.message || '변경에 실패했어요.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <span className="row" style={{ alignItems: 'center', gap: 6 }}>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value.toUpperCase())}
+        style={{ width: 110, padding: '2px 6px', fontSize: 12, borderRadius: 6, border: 'none' }}
+      />
+      <button type="button" className="btn btn-accent" style={{ padding: '3px 8px', fontSize: 12 }} onClick={handleSave} disabled={pending}>
+        저장
+      </button>
+      <button type="button" onClick={() => setEditing(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 12, cursor: 'pointer' }}>
+        취소
+      </button>
+      {error && <span style={{ color: '#ffb4b4', fontSize: 11 }}>{error}</span>}
+    </span>
+  );
+}
+
 export default function AdminTab({ onExit }) {
   const [teacher, setTeacher] = useState(() => getTeacherSession());
   const [selectedClass, setSelectedClass] = useState(null);
@@ -334,7 +387,14 @@ export default function AdminTab({ onExit }) {
     <div className="app-shell">
       <div className="app-header">
         <h1>🎯 {selectedClass.name}</h1>
-        <div className="sub">학급 코드 {selectedClass.code} · {teacher.username}</div>
+        <div className="row" style={{ alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <ClassCodeEditor
+            classId={selectedClass.id}
+            code={selectedClass.code}
+            onUpdated={(newCode) => setSelectedClass({ ...selectedClass, code: newCode })}
+          />
+          <span className="sub" style={{ marginTop: 0 }}>{teacher.username}</span>
+        </div>
       </div>
       <div className="app-main">
         <button className="btn btn-outline" type="button" onClick={() => setSelectedClass(null)} style={{ marginBottom: 12 }}>
@@ -351,6 +411,7 @@ export default function AdminTab({ onExit }) {
         {subTab === 'records' && <AdminRecords classId={selectedClass.id} />}
         {subTab === 'read' && <AdminContentEditor kind="read" classId={selectedClass.id} />}
         {subTab === 'learn' && <AdminContentEditor kind="learn" classId={selectedClass.id} />}
+        {subTab === 'reflect' && <AdminReflectionEditor classId={selectedClass.id} />}
 
         <div className="center" style={{ marginTop: 8 }}>
           <button className="btn btn-outline" type="button" onClick={handleLogout}>로그아웃</button>

@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
-import { getMyReflection, saveReflection } from '../lib/api';
+import { getMyReflection, saveReflection, listReflectionQuestions, getMyReflectionAnswers, saveReflectionAnswer } from '../lib/api';
 import { todayKST } from '../lib/date';
 
 const SKILL_OPTIONS = ['호흡법', '슈팅 루틴', '심상', '기타'];
 
-export default function ReflectTab() {
+export default function ReflectTab({ classId }) {
   const today = todayKST();
   const [loading, setLoading] = useState(true);
   const [usedSkills, setUsedSkills] = useState([]);
   const [shortNote, setShortNote] = useState('');
-  const [endure, setEndure] = useState('');
-  const [regulate, setRegulate] = useState('');
-  const [lifeLink, setLifeLink] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({}); // question_id -> text
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -19,21 +18,26 @@ export default function ReflectTab() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await getMyReflection(today);
-        if (cancelled || !r) return;
-        setUsedSkills(r.used_skills || []);
-        setShortNote(r.short_note || '');
-        setEndure(r.endure || '');
-        setRegulate(r.regulate || '');
-        setLifeLink(r.life_link || '');
+        const [r, qs, myAnswers] = await Promise.all([
+          getMyReflection(today).catch(() => null),
+          listReflectionQuestions(classId),
+          getMyReflectionAnswers(today).catch(() => []),
+        ]);
+        if (cancelled) return;
+        if (r) {
+          setUsedSkills(r.used_skills || []);
+          setShortNote(r.short_note || '');
+        }
+        setQuestions(qs);
+        setAnswers(Object.fromEntries(myAnswers.map((a) => [a.question_id, a.answer_text || ''])));
       } catch {
-        /* 오늘 성찰이 없으면 빈 화면으로 시작 */
+        /* 문항을 못 불러와도 심리기법/메모는 계속 작성 가능하게 둠 */
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [today]);
+  }, [today, classId]);
 
   function toggleSkill(skill) {
     setUsedSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]));
@@ -44,7 +48,10 @@ export default function ReflectTab() {
     setPending(true);
     setResult(null);
     try {
-      await saveReflection({ logDate: today, usedSkills, shortNote, endure, regulate, lifeLink });
+      await saveReflection({ logDate: today, usedSkills, shortNote });
+      await Promise.all(
+        questions.map((q) => saveReflectionAnswer(q.id, today, answers[q.id] || ''))
+      );
       setResult({ ok: true });
     } catch (err) {
       setResult({ ok: false, error: err.message || '저장에 실패했어요.' });
@@ -81,18 +88,21 @@ export default function ReflectTab() {
           <label>집중이 흐트러진 순간과 그때 사용한 방법</label>
           <textarea value={shortNote} onChange={(e) => setShortNote(e.target.value)} placeholder="한두 줄로 짧게 적어보세요" />
         </div>
-        <div className="field">
-          <label>① 인내·도전: 어려웠지만 견디고 도전한 점</label>
-          <textarea value={endure} onChange={(e) => setEndure(e.target.value)} />
-        </div>
-        <div className="field">
-          <label>② 자기조절: 어려움을 극복하려 사용한 방법</label>
-          <textarea value={regulate} onChange={(e) => setRegulate(e.target.value)} />
-        </div>
-        <div className="field">
-          <label>③ 삶과 연계: 이 방법을 내 삶 어디에 써볼까</label>
-          <textarea value={lifeLink} onChange={(e) => setLifeLink(e.target.value)} placeholder="시험, 발표 등" />
-        </div>
+
+        {questions.length === 0 && (
+          <p className="muted" style={{ fontSize: 13 }}>선생님이 아직 성찰 문항을 등록하지 않았어요.</p>
+        )}
+        {questions.map((q, i) => (
+          <div className="field" key={q.id}>
+            <label>{i + 1}. {q.question_text}</label>
+            {q.activity_sheet_url && <img src={q.activity_sheet_url} alt="" className="content-image" style={{ marginBottom: 8 }} />}
+            <textarea
+              value={answers[q.id] || ''}
+              onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+            />
+          </div>
+        ))}
+
         {result && !result.ok && <div className="msg msg-error">{result.error}</div>}
         {result && result.ok && <div className="msg msg-ok">오늘의 성찰을 저장했어요.</div>}
         <button className="btn btn-primary btn-block" type="submit" disabled={pending} style={{ marginTop: 4 }}>
