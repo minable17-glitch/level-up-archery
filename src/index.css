@@ -307,13 +307,21 @@ button, input, textarea, select {
   height: 20px;
   margin-left: -10px;
   margin-top: -10px;
-  color: #ffffff;
   font-weight: 900;
   font-size: 16px;
   line-height: 20px;
   text-align: center;
   text-shadow: 0 0 3px #000, 0 0 3px #000;
-  cursor: pointer;
+}
+
+.target-marker.hit {
+  color: #4ade80;
+  font-size: 14px;
+}
+
+.target-marker.non-hit {
+  color: #ffffff;
+  opacity: 0.6;
 }
 
 .hit-count {

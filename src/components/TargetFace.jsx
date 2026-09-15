@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { HIT_RADIUS } from '../lib/aimFeedback';
 
 const RINGS = [
   { pct: 100, color: '#ffffff', border: '#c9c2ab' },
@@ -47,15 +48,18 @@ export default function TargetFace({ markers, onAddMarker }) {
             }}
           />
         ))}
-        {markers.map((m, i) => (
-          <div
-            key={i}
-            className="target-marker"
-            style={{ left: `${(m.x + 1) / 2 * 100}%`, top: `${(1 - m.y) / 2 * 100}%`, pointerEvents: 'none' }}
-          >
-            ✕
-          </div>
-        ))}
+        {markers.map((m, i) => {
+          const isHit = Math.hypot(m.x, m.y) <= HIT_RADIUS;
+          return (
+            <div
+              key={i}
+              className={`target-marker ${isHit ? 'hit' : 'non-hit'}`}
+              style={{ left: `${(m.x + 1) / 2 * 100}%`, top: `${(1 - m.y) / 2 * 100}%`, pointerEvents: 'none' }}
+            >
+              {isHit ? '●' : '✕'}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

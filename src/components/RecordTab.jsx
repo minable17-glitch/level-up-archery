@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import TargetFace, { MAX_MARKERS } from './TargetFace';
+import { HIT_RADIUS, computeAimFeedback } from '../lib/aimFeedback';
 import { getMyShootingLog, getMyShootingHistory, saveShootingLog } from '../lib/api';
+
+function countHits(markers) {
+  return markers.filter((m) => Math.hypot(m.x, m.y) <= HIT_RADIUS).length;
+}
 
 export default function RecordTab({ dayId }) {
   const [bowNumber, setBowNumber] = useState('');
@@ -43,7 +48,9 @@ export default function RecordTab({ dayId }) {
     setMarkers([]);
   }
 
+  const hitCount = countHits(markers);
   const totalShots = markers.length + missCount;
+  const feedback = computeAimFeedback(markers);
 
   async function handleSave() {
     if (!bowNumber.trim()) {
@@ -57,7 +64,7 @@ export default function RecordTab({ dayId }) {
         dayId,
         bowNumber: bowNumber.trim(),
         markers,
-        hitCount: markers.length,
+        hitCount,
         missCount,
       });
       setResult({ ok: true });
@@ -82,11 +89,11 @@ export default function RecordTab({ dayId }) {
 
       <div className="card">
         <p className="muted center" style={{ marginTop: 0, fontSize: 13 }}>
-          화살이 맞은 자리를 과녁 위에 탭하세요. (최대 {MAX_MARKERS}발)
+          화살이 맞은 자리를 과녁 위에 탭하세요. (최대 {MAX_MARKERS}발) 빨강·금색 안쪽만 명중으로 기록돼요.
         </p>
         <TargetFace markers={markers} onAddMarker={addMarker} />
         <div className="hit-count">
-          총 <b>{totalShots}</b>발 중 <b>{markers.length}</b>발 명중
+          총 <b>{totalShots}</b>발 중 <b>{hitCount}</b>발 명중
         </div>
         <div className="row center" style={{ justifyContent: 'center', marginBottom: 12 }}>
           <button className="btn btn-outline" type="button" onClick={undoLast} disabled={markers.length === 0}>
@@ -96,8 +103,9 @@ export default function RecordTab({ dayId }) {
             전체 지우기
           </button>
         </div>
+        <div className={`advice-box ${feedback.kind}`}>{feedback.message}</div>
 
-        <div className="field">
+        <div className="field" style={{ marginTop: 12 }}>
           <label>빗나간 화살 수 (과녁을 완전히 벗어난 경우)</label>
           <div className="row center" style={{ justifyContent: 'center', gap: 12 }}>
             <button className="btn btn-outline" type="button" onClick={() => setMissCount((n) => Math.max(0, n - 1))} disabled={missCount === 0}>
