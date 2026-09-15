@@ -186,7 +186,7 @@ begin
   if coalesce(trim(p_email), '') = '' then
     raise exception '이메일을 입력해주세요 (아이디·비밀번호 찾기에 필요해요)';
   end if;
-  if exists (select 1 from teachers where username = trim(p_username)) then
+  if exists (select 1 from teachers where teachers.username = trim(p_username)) then
     raise exception '이미 사용 중인 아이디예요';
   end if;
   insert into teachers (username, password_hash, email, auth_user_id)
@@ -203,7 +203,7 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_teacher teachers%rowtype;
 begin
-  select * into v_teacher from teachers where username = trim(p_username);
+  select * into v_teacher from teachers where teachers.username = trim(p_username);
   if not found or v_teacher.password_hash <> crypt(coalesce(p_password, ''), v_teacher.password_hash) then
     raise exception '아이디 또는 비밀번호가 올바르지 않아요';
   end if;
@@ -228,7 +228,7 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_teacher teachers%rowtype;
 begin
-  select * into v_teacher from teachers where username = trim(p_username) and email = trim(p_email);
+  select * into v_teacher from teachers where teachers.username = trim(p_username) and teachers.email = trim(p_email);
   if not found then
     raise exception '아이디와 이메일이 일치하는 계정을 찾을 수 없어요';
   end if;
@@ -250,7 +250,7 @@ declare
   v_code text;
   v_row classes%rowtype;
 begin
-  select id into v_teacher_id from teachers where auth_user_id = auth.uid();
+  select teachers.id into v_teacher_id from teachers where teachers.auth_user_id = auth.uid();
   if v_teacher_id is null then
     raise exception '로그인이 필요해요. 다시 로그인해주세요';
   end if;
@@ -347,7 +347,7 @@ language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_student_id uuid;
 begin
-  select id into v_student_id from students where auth_user_id = auth.uid();
+  select students.id into v_student_id from students where students.auth_user_id = auth.uid();
   if v_student_id is null then
     raise exception '로그인 정보를 찾을 수 없어요. 다시 로그인해주세요';
   end if;
@@ -394,7 +394,7 @@ begin
   if not found then
     raise exception '로그인 정보를 찾을 수 없어요. 다시 로그인해주세요';
   end if;
-  select * into v_class from classes where id = v_student.class_id;
+  select * into v_class from classes where classes.id = v_student.class_id;
 
   insert into shooting_logs (
     student_id, class_id, class_name, student_name, student_number,
@@ -466,7 +466,7 @@ begin
   if not found then
     raise exception '로그인 정보를 찾을 수 없어요. 다시 로그인해주세요';
   end if;
-  select * into v_class from classes where id = v_student.class_id;
+  select * into v_class from classes where classes.id = v_student.class_id;
 
   insert into reflections (
     student_id, class_id, class_name, student_name, student_number,
