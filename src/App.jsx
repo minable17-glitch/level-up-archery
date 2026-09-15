@@ -3,20 +3,28 @@ import RoleGate from './components/RoleGate';
 import StudentLoginGate from './components/StudentLoginGate';
 import DayList from './components/DayList';
 import DayView from './components/DayView';
+import MyRecordsTab from './components/MyRecordsTab';
 import AdminTab from './components/AdminTab';
 import { getSession, clearSession } from './lib/session';
 import { logout as apiLogout } from './lib/api';
+
+const TABS = [
+  { key: 'days', label: '일차', icon: '🎯' },
+  { key: 'records', label: '내 기록', icon: '📈' },
+];
 
 export default function App() {
   const [student, setStudent] = useState(() => getSession());
   // 'student' | 'admin' | null(=역할 선택 화면). 이미 로그인된 학생이 있으면 바로 학생 화면으로.
   const [mode, setMode] = useState(() => (getSession() ? 'student' : null));
+  const [activeTab, setActiveTab] = useState('days');
   const [selectedDay, setSelectedDay] = useState(null);
 
   async function handleLogout() {
     await apiLogout();
     clearSession();
     setStudent(null);
+    setActiveTab('days');
     setSelectedDay(null);
     setMode(null);
   }
@@ -60,8 +68,21 @@ export default function App() {
         </div>
       </div>
       <div className="app-main">
-        {!selectedDay && <DayList classId={student.classId} onSelectDay={setSelectedDay} />}
-        {selectedDay && <DayView day={selectedDay} onBack={() => setSelectedDay(null)} />}
+        {activeTab === 'days' && !selectedDay && (
+          <DayList classId={student.classId} onSelectDay={setSelectedDay} />
+        )}
+        {activeTab === 'days' && selectedDay && (
+          <DayView day={selectedDay} onBack={() => setSelectedDay(null)} />
+        )}
+        {activeTab === 'records' && <MyRecordsTab classId={student.classId} />}
+      </div>
+      <div className="bottom-nav">
+        {TABS.map((t) => (
+          <button key={t.key} className={activeTab === t.key ? 'active' : ''} onClick={() => setActiveTab(t.key)} type="button">
+            <span className="icon">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
       </div>
     </div>
   );
