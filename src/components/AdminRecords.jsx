@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   adminListStudents, adminListShootingLogs, adminListReflections,
-  adminListReflectionQuestions, adminListReflectionAnswers,
+  adminListReflectionQuestionsByClass, adminListReflectionAnswers,
 } from '../lib/api';
 
 export default function AdminRecords({ classId }) {
@@ -22,7 +22,7 @@ export default function AdminRecords({ classId }) {
           adminListStudents(classId),
           adminListShootingLogs(classId),
           adminListReflections(classId),
-          adminListReflectionQuestions(classId),
+          adminListReflectionQuestionsByClass(classId),
           adminListReflectionAnswers(classId),
         ]);
         if (cancelled) return;
@@ -41,10 +41,10 @@ export default function AdminRecords({ classId }) {
   }, [classId]);
 
   const questionTextById = Object.fromEntries(questions.map((q) => [q.id, q.question_text]));
-  const answersByStudentDate = {};
+  const answersByStudentQuestion = {};
   for (const a of answers) {
-    const key = `${a.student_id}__${a.log_date}`;
-    (answersByStudentDate[key] ||= []).push(a);
+    const key = `${a.student_id}__${a.day_id}`;
+    (answersByStudentQuestion[key] ||= []).push(a);
   }
 
   if (loading) return <div className="card center muted">불러오는 중...</div>;
@@ -82,16 +82,15 @@ export default function AdminRecords({ classId }) {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>날짜</th><th>학번</th><th>이름</th><th>차시</th><th>활</th><th>명중</th><th>보정 안내</th><th>세팅(전→후)</th>
+                <th>일차</th><th>학번</th><th>이름</th><th>활</th><th>명중</th><th>보정 안내</th><th>세팅(전→후)</th>
               </tr>
             </thead>
             <tbody>
               {logs.map((l) => (
                 <tr key={l.id}>
-                  <td>{l.log_date}</td>
+                  <td>{l.day_title}</td>
                   <td>{l.student_number}</td>
                   <td>{l.student_name}</td>
-                  <td>{l.session_label}</td>
                   <td>{l.bow_number}</td>
                   <td>{l.hit_count}</td>
                   <td style={{ whiteSpace: 'normal', maxWidth: 220 }}>{l.aim_advice}</td>
@@ -110,7 +109,7 @@ export default function AdminRecords({ classId }) {
           <div key={r.id} className="list-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <b>{r.student_number} {r.student_name}</b>
-              <span className="muted">{r.log_date}</span>
+              <span className="muted">{r.day_title}</span>
             </div>
             {r.used_skills?.length > 0 && (
               <div className="pill-row" style={{ marginBottom: 0 }}>
@@ -118,7 +117,7 @@ export default function AdminRecords({ classId }) {
               </div>
             )}
             {r.short_note && <div className="muted">메모: {r.short_note}</div>}
-            {(answersByStudentDate[`${r.student_id}__${r.log_date}`] || []).map((a) => (
+            {(answersByStudentQuestion[`${r.student_id}__${r.day_id}`] || []).map((a) => (
               <div key={a.id}>
                 <b>{questionTextById[a.question_id] || '(삭제된 문항)'}</b>
                 <div className="muted">{a.answer_text}</div>

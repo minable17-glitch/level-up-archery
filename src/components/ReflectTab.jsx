@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getMyReflection, saveReflection, listReflectionQuestions, getMyReflectionAnswers, saveReflectionAnswer } from '../lib/api';
-import { todayKST } from '../lib/date';
 
 const SKILL_OPTIONS = ['호흡법', '슈팅 루틴', '심상', '기타'];
 
-export default function ReflectTab({ classId }) {
-  const today = todayKST();
+export default function ReflectTab({ dayId }) {
   const [loading, setLoading] = useState(true);
   const [usedSkills, setUsedSkills] = useState([]);
   const [shortNote, setShortNote] = useState('');
@@ -19,9 +17,9 @@ export default function ReflectTab({ classId }) {
     (async () => {
       try {
         const [r, qs, myAnswers] = await Promise.all([
-          getMyReflection(today).catch(() => null),
-          listReflectionQuestions(classId),
-          getMyReflectionAnswers(today).catch(() => []),
+          getMyReflection(dayId).catch(() => null),
+          listReflectionQuestions(dayId),
+          getMyReflectionAnswers(dayId).catch(() => []),
         ]);
         if (cancelled) return;
         if (r) {
@@ -37,7 +35,7 @@ export default function ReflectTab({ classId }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [today, classId]);
+  }, [dayId]);
 
   function toggleSkill(skill) {
     setUsedSkills((prev) => (prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]));
@@ -48,9 +46,9 @@ export default function ReflectTab({ classId }) {
     setPending(true);
     setResult(null);
     try {
-      await saveReflection({ logDate: today, usedSkills, shortNote });
+      await saveReflection({ dayId, usedSkills, shortNote });
       await Promise.all(
-        questions.map((q) => saveReflectionAnswer(q.id, today, answers[q.id] || ''))
+        questions.map((q) => saveReflectionAnswer(q.id, answers[q.id] || ''))
       );
       setResult({ ok: true });
     } catch (err) {
@@ -66,11 +64,11 @@ export default function ReflectTab({ classId }) {
     <div className="card">
       <h2>성찰하기</h2>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        오늘 사용한 심리기법과 어려움을 견디고 도전한 경험을 기록해보세요.
+        이번 일차에 사용한 심리기법과 어려움을 견디고 도전한 경험을 기록해보세요.
       </p>
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label>오늘 사용한 심리기법</label>
+          <label>이번 일차에 사용한 심리기법</label>
           <div className="pill-row">
             {SKILL_OPTIONS.map((s) => (
               <button
@@ -104,9 +102,9 @@ export default function ReflectTab({ classId }) {
         ))}
 
         {result && !result.ok && <div className="msg msg-error">{result.error}</div>}
-        {result && result.ok && <div className="msg msg-ok">오늘의 성찰을 저장했어요.</div>}
+        {result && result.ok && <div className="msg msg-ok">이 일차의 성찰을 저장했어요.</div>}
         <button className="btn btn-primary btn-block" type="submit" disabled={pending} style={{ marginTop: 4 }}>
-          {pending ? '저장 중...' : '오늘 성찰 저장'}
+          {pending ? '저장 중...' : '이 일차 성찰 저장'}
         </button>
       </form>
     </div>

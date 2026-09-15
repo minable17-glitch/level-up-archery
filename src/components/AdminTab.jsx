@@ -4,15 +4,12 @@ import {
   createClass, getMyClasses, adminUpdateClassCode, logout as apiLogout,
 } from '../lib/api';
 import { getTeacherSession, setTeacherSession, clearTeacherSession } from '../lib/session';
-import AdminContentEditor from './AdminContentEditor';
-import AdminReflectionEditor from './AdminReflectionEditor';
+import AdminDayManager from './AdminDayManager';
 import AdminRecords from './AdminRecords';
 
 const SUB_TABS = [
   { key: 'records', label: '학생·기록' },
-  { key: 'read', label: '읽어보기 관리' },
-  { key: 'learn', label: '배워보기 관리' },
-  { key: 'reflect', label: '성찰하기 관리' },
+  { key: 'days', label: '일차 관리' },
 ];
 
 function AuthScreen({ onLoggedIn, onExit }) {
@@ -409,9 +406,7 @@ export default function AdminTab({ onExit }) {
         </div>
 
         {subTab === 'records' && <AdminRecords classId={selectedClass.id} />}
-        {subTab === 'read' && <AdminContentEditor kind="read" classId={selectedClass.id} />}
-        {subTab === 'learn' && <AdminContentEditor kind="learn" classId={selectedClass.id} />}
-        {subTab === 'reflect' && <AdminReflectionEditor classId={selectedClass.id} />}
+        {subTab === 'days' && <AdminDayManager classId={selectedClass.id} />}
 
         <div className="center" style={{ marginTop: 8 }}>
           <button className="btn btn-outline" type="button" onClick={handleLogout}>로그아웃</button>

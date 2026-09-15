@@ -3,7 +3,7 @@ import { adminListReflectionQuestions, adminUpsertReflectionQuestion, adminDelet
 
 const EMPTY = { id: null, questionText: '', activitySheetUrl: '', orderIndex: 0, visible: true };
 
-export default function AdminReflectionEditor({ classId }) {
+export default function AdminReflectionEditor({ dayId }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY);
@@ -13,7 +13,7 @@ export default function AdminReflectionEditor({ classId }) {
   async function refresh() {
     setError('');
     try {
-      setItems(await adminListReflectionQuestions(classId));
+      setItems(await adminListReflectionQuestions(dayId));
     } catch (err) {
       setError(err.message || '문항 목록을 불러오지 못했어요.');
     } finally {
@@ -24,7 +24,7 @@ export default function AdminReflectionEditor({ classId }) {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId]);
+  }, [dayId]);
 
   function edit(item) {
     setForm({
@@ -45,7 +45,7 @@ export default function AdminReflectionEditor({ classId }) {
     setPending(true);
     setError('');
     try {
-      await adminUpsertReflectionQuestion(classId, form);
+      await adminUpsertReflectionQuestion(dayId, form);
       setForm(EMPTY);
       await refresh();
     } catch (err) {
@@ -58,7 +58,7 @@ export default function AdminReflectionEditor({ classId }) {
   async function handleDelete(id) {
     if (!window.confirm('이 문항을 삭제할까요? (학생이 이미 작성한 답변도 함께 사라져요)')) return;
     try {
-      await adminDeleteReflectionQuestion(classId, id);
+      await adminDeleteReflectionQuestion(dayId, id);
       await refresh();
     } catch (err) {
       setError(err.message || '삭제에 실패했어요.');

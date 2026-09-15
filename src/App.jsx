@@ -2,20 +2,15 @@ import { useEffect, useState } from 'react';
 import RoleGate from './components/RoleGate';
 import StudentLoginGate from './components/StudentLoginGate';
 import EquipmentTab from './components/EquipmentTab';
-import ReadTab from './components/ReadTab';
-import LearnTab from './components/LearnTab';
-import RecordTab from './components/RecordTab';
-import ReflectTab from './components/ReflectTab';
+import DayList from './components/DayList';
+import DayView from './components/DayView';
 import AdminTab from './components/AdminTab';
 import { getSession, clearSession } from './lib/session';
 import { getMyEquipment, logout as apiLogout } from './lib/api';
 
 const TABS = [
   { key: 'equipment', label: '내 장비', icon: '🏹' },
-  { key: 'read', label: '읽어보기', icon: '📖' },
-  { key: 'learn', label: '배워보기', icon: '🎬' },
-  { key: 'record', label: '기록하기', icon: '🎯' },
-  { key: 'reflect', label: '성찰하기', icon: '📝' },
+  { key: 'days', label: '일차', icon: '🎯' },
 ];
 
 export default function App() {
@@ -25,6 +20,7 @@ export default function App() {
   const [equipment, setEquipment] = useState(null);
   const [equipmentLoaded, setEquipmentLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('equipment');
+  const [selectedDay, setSelectedDay] = useState(null);
 
   useEffect(() => {
     if (!student) return;
@@ -58,6 +54,7 @@ export default function App() {
     setEquipment(null);
     setEquipmentLoaded(false);
     setActiveTab('equipment');
+    setSelectedDay(null);
     setMode(null);
   }
 
@@ -103,17 +100,27 @@ export default function App() {
         {activeTab === 'equipment' && (
           <EquipmentTab onSaved={(eq) => setEquipment(eq)} />
         )}
-        {activeTab === 'read' && <ReadTab classId={student.classId} />}
-        {activeTab === 'learn' && <LearnTab classId={student.classId} />}
-        {activeTab === 'record' && equipmentLoaded && (
-          <RecordTab equipment={equipment} onGoToEquipment={() => setActiveTab('equipment')} />
+        {activeTab === 'days' && !selectedDay && (
+          <DayList classId={student.classId} onSelectDay={setSelectedDay} />
         )}
-        {activeTab === 'record' && !equipmentLoaded && <div className="card center muted">불러오는 중...</div>}
-        {activeTab === 'reflect' && <ReflectTab classId={student.classId} />}
+        {activeTab === 'days' && selectedDay && (
+          <DayView
+            day={selectedDay}
+            equipment={equipment}
+            equipmentLoaded={equipmentLoaded}
+            onGoToEquipment={() => { setSelectedDay(null); setActiveTab('equipment'); }}
+            onBack={() => setSelectedDay(null)}
+          />
+        )}
       </div>
       <div className="bottom-nav">
         {TABS.map((t) => (
-          <button key={t.key} className={activeTab === t.key ? 'active' : ''} onClick={() => setActiveTab(t.key)} type="button">
+          <button
+            key={t.key}
+            className={activeTab === t.key ? 'active' : ''}
+            onClick={() => { setActiveTab(t.key); if (t.key !== 'days') setSelectedDay(null); }}
+            type="button"
+          >
             <span className="icon">{t.icon}</span>
             {t.label}
           </button>

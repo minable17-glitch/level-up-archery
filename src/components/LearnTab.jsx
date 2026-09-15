@@ -3,7 +3,7 @@ import { listLearnContents } from '../lib/api';
 import { splitUrls, toYoutubeEmbedUrl } from '../lib/media';
 import BoxBreathing from './BoxBreathing';
 
-export default function LearnTab({ classId }) {
+export default function LearnTab({ dayId }) {
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -14,7 +14,7 @@ export default function LearnTab({ classId }) {
     let cancelled = false;
     (async () => {
       try {
-        const rows = await listLearnContents(classId);
+        const rows = await listLearnContents(dayId);
         if (!cancelled) setContents(rows);
       } catch (err) {
         if (!cancelled) setError(err.message || '목록을 불러오지 못했어요.');
@@ -23,7 +23,7 @@ export default function LearnTab({ classId }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [classId]);
+  }, [dayId]);
 
   if (showBreathing) {
     return (

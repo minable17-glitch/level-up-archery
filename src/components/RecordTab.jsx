@@ -2,38 +2,34 @@ import { useEffect, useState } from 'react';
 import TargetFace, { MAX_MARKERS } from './TargetFace';
 import { computeAimAdvice } from '../lib/aimCoach';
 import { getMyShootingLog, getMyShootingHistory, saveShootingLog } from '../lib/api';
-import { todayKST } from '../lib/date';
 
-export default function RecordTab({ equipment, onGoToEquipment }) {
+export default function RecordTab({ dayId, dayTitle, equipment, onGoToEquipment }) {
   const [markers, setMarkers] = useState([]);
-  const [sessionLabel, setSessionLabel] = useState('');
   const [sightAfter, setSightAfter] = useState('');
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
-  const today = todayKST();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [log, hist] = await Promise.all([getMyShootingLog(today), getMyShootingHistory(8)]);
+        const [log, hist] = await Promise.all([getMyShootingLog(dayId), getMyShootingHistory(8)]);
         if (cancelled) return;
         if (log) {
           setMarkers(Array.isArray(log.markers) ? log.markers : []);
-          setSessionLabel(log.session_label || '');
           setSightAfter(log.sight_after || '');
         }
-        setHistory(hist.filter((h) => h.log_date !== today));
+        setHistory(hist.filter((h) => h.day_id !== dayId));
       } catch {
-        /* 오늘 기록이 없으면 빈 화면으로 시작 */
+        /* 이 일차 기록이 없으면 빈 화면으로 시작 */
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [today]);
+  }, [dayId]);
 
   const advice = computeAimAdvice(markers);
 
@@ -57,8 +53,7 @@ export default function RecordTab({ equipment, onGoToEquipment }) {
     setResult(null);
     try {
       await saveShootingLog({
-        logDate: today,
-        sessionLabel,
+        dayId,
         bowNumber: equipment?.bowNumber || '',
         markers,
         hitCount: markers.length,
@@ -97,12 +92,8 @@ export default function RecordTab({ equipment, onGoToEquipment }) {
       <div className="card">
         <h2>기록하기</h2>
         <div className="row" style={{ fontSize: 13 }}>
-          <span className="tag">{today}</span>
+          <span className="tag">{dayTitle}</span>
           <span className="tag">활 {equipment.bowNumber}</span>
-        </div>
-        <div className="field" style={{ marginTop: 10 }}>
-          <label>차시 (선택)</label>
-          <input type="text" value={sessionLabel} onChange={(e) => setSessionLabel(e.target.value)} placeholder="예: 3차시" />
         </div>
       </div>
 
@@ -138,7 +129,7 @@ export default function RecordTab({ equipment, onGoToEquipment }) {
         {result && !result.ok && <div className="msg msg-error">{result.error}</div>}
         {result && result.ok && <div className="msg msg-ok">저장했어요.</div>}
         <button className="btn btn-primary btn-block" type="button" onClick={handleSave} disabled={pending} style={{ marginTop: 4 }}>
-          {pending ? '저장 중...' : '오늘 기록 저장'}
+          {pending ? '저장 중...' : '이 일차 기록 저장'}
         </button>
       </div>
 
@@ -146,8 +137,8 @@ export default function RecordTab({ equipment, onGoToEquipment }) {
         <div className="card">
           <h2>최근 기록</h2>
           {history.map((h) => (
-            <div className="list-row" key={h.log_date}>
-              <span>{h.log_date}{h.session_label ? ` · ${h.session_label}` : ''}</span>
+            <div className="list-row" key={h.day_id}>
+              <span>{h.day_title}</span>
               <span className="muted">명중 {h.hit_count}발</span>
             </div>
           ))}

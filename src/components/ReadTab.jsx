@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listReadContents } from '../lib/api';
 import { splitUrls } from '../lib/media';
 
-export default function ReadTab({ classId }) {
+export default function ReadTab({ dayId }) {
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,7 +12,7 @@ export default function ReadTab({ classId }) {
     let cancelled = false;
     (async () => {
       try {
-        const rows = await listReadContents(classId);
+        const rows = await listReadContents(dayId);
         if (!cancelled) setContents(rows);
       } catch (err) {
         if (!cancelled) setError(err.message || '목록을 불러오지 못했어요.');
@@ -21,7 +21,7 @@ export default function ReadTab({ classId }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [classId]);
+  }, [dayId]);
 
   if (selected) {
     const images = splitUrls(selected.image_urls);

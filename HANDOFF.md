@@ -36,22 +36,27 @@ VITE_SUPABASE_ANON_KEY=
 
 ## 3. 화면 구조
 
+**v3: "일차(day)" 구조.** 학급 안에 여러 "일차"가 있고, 읽어보기/배워보기/성찰 문항과 학생의 기록은 전부 특정 일차에 속한다(러닝 성찰일지 앱의 classes → days → day_questions/records 구조를 그대로 따름). 학생은 먼저 일차를 고른 뒤, 그 일차 안에서 STEP1~4를 진행한다.
+
 ```
 RoleGate   "역할을 선택하세요" — 학생으로 로그인 / 선생님으로 로그인
   ├ 학생으로 로그인
   │  StudentLoginGate   학급 코드 + 학번 + 이름 + PIN(4자리) 로그인 (최초 로그인 = 자동 등록)
-  │    └ 하단 탭 5개
-  │        내 장비     활 번호 · 조/사대 위치 · 사이트 세팅 저장
-  │        읽어보기    이미지 콘텐츠 카드 목록 → 상세(이미지 세로 스크롤)
-  │        배워보기    영상(유튜브 embed 또는 직접 재생) + 이미지 + 설명, 박스 호흡 타이머 포함
-  │        기록하기    과녁 탭 마커 기록 + 명중 수 자동 집계 + 조준 보정 코치 (핵심 기능)
-  │        성찰하기    심리기법 체크 + 짧은 기록 + 교사가 만든 성찰 문항에 답변 (매일 업서트)
+  │    └ 하단 탭 2개
+  │        내 장비   활 번호 · 조/사대 위치 · 사이트 세팅 저장 (일차와 무관, 학생당 1건)
+  │        일차     DayList(일차 목록) → 일차 선택 → DayView
+  │                   DayView 안에 STEP 1~4 pill 네비게이션
+  │                     STEP 1 읽어보기   이미지 콘텐츠 카드 목록 → 상세(이미지 세로 스크롤)
+  │                     STEP 2 배워보기   영상(유튜브 embed/직접 재생) + 이미지 + 설명, 박스 호흡 타이머 포함
+  │                     STEP 3 기록하기   과녁 탭 마커 기록 + 명중 수 자동 집계 + 조준 보정 코치 (핵심 기능)
+  │                     STEP 4 성찰하기   심리기법 체크 + 짧은 기록 + 교사가 만든 성찰 문항에 답변 (일차당 1건 업서트)
   └ 선생님으로 로그인 → AdminTab
-       AuthScreen    아이디/비밀번호 로그인, 계정 만들기, 아이디 찾기(이메일), 비밀번호 찾기(아이디+이메일)
-       ClassPicker   로그인한 교사가 만든 학급 목록 + 새 학급 만들기 (교사 1명이 여러 학급 가능)
-       학급 선택 후  4개 서브탭 — 학생·기록 / 읽어보기 관리 / 배워보기 관리 / 성찰하기 관리
-                    (성찰하기 관리 = 문항 추가·수정·삭제, 러닝앱의 day_questions 관리 화면을 참고해서 만듦)
-                    헤더에서 학급 코드도 직접 수정 가능
+       AuthScreen       아이디/비밀번호 로그인, 계정 만들기, 아이디 찾기(이메일), 비밀번호 찾기(아이디+이메일)
+       ClassPicker      로그인한 교사가 만든 학급 목록 + 새 학급 만들기 (교사 1명이 여러 학급 가능)
+       학급 선택 후     2개 서브탭 — 학생·기록 / 일차 관리
+                        일차 관리(AdminDayManager) = 일차 목록(추가·수정·삭제) → 일차 선택 →
+                          STEP 1 읽어보기 / STEP 2 배워보기 / STEP 4 성찰 문항 CRUD
+                        헤더에서 학급 코드도 직접 수정 가능
 ```
 
 학생 화면 상단에도 작은 "관리자" 버튼이 있어서 로그아웃 없이 바로 관리자 화면으로 전환할 수 있다(같은 기기를 교사가 테스트할 때 편하도록).
@@ -73,15 +78,18 @@ src/
     RoleGate.jsx                 첫 화면 역할 선택(학생/선생님)
     StudentLoginGate.jsx
     EquipmentTab.jsx
-    ReadTab.jsx / LearnTab.jsx
-    TargetFace.jsx              과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어)
-    RecordTab.jsx                기록하기 화면 본체
-    BoxBreathing.jsx             박스 호흡(4-4-4-4) 타이머 위젯
-    ReflectTab.jsx
-    AdminTab.jsx                 교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸
-    AdminContentEditor.jsx       읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화)
-    AdminReflectionEditor.jsx    성찰 문항 CRUD (학급별로 교사가 자유롭게 문항 추가/수정/삭제)
-    AdminRecords.jsx             학생/슈팅기록/성찰기록(답변 포함) 조회
+    DayList.jsx                  학생용 일차 목록 (classId → 일차 카드 리스트)
+    DayView.jsx                  학생용 일차 상세: STEP1~4 pill 네비게이션 + Read/Learn/Record/ReflectTab을 dayId로 렌더
+    ReadTab.jsx / LearnTab.jsx    dayId prop 기준으로 콘텐츠 조회 (이전엔 classId 기준)
+    TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어)
+    RecordTab.jsx                 기록하기 화면 본체 (dayId·dayTitle prop, 일차당 1건 업서트)
+    BoxBreathing.jsx              박스 호흡(4-4-4-4) 타이머 위젯
+    ReflectTab.jsx                 dayId prop 기준 (일차당 1건 업서트)
+    AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
+    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌
+    AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
+    AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
+    AdminRecords.jsx              학생/슈팅기록/성찰기록(답변 포함) 조회 (학급 전체, day_title로 표시)
 
 supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Editor에서 실행)
 ```
@@ -103,13 +111,16 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 | `classes` | 학급 이름, 학급 코드(학생용), `teacher_id`로 소유 교사 연결 |
 | `students` | 학번+이름+PIN해시, `auth_user_id`로 현재 익명 세션과 연결 |
 | `equipment` | 학생별 활 번호·조/사대·사이트 세팅 (student_id가 PK, upsert) |
-| `read_contents` / `learn_contents` | 교사가 등록하는 콘텐츠 (이미지 URL은 쉼표로 여러 개, 학생에게는 `visible=true`만 노출) |
-| `shooting_logs` | 회차별(학생당 하루 1건, `unique(student_id, log_date)`) 탄착 마커·명중수·조준보정 문구·사이트 전/후 |
-| `reflections` | 회차별(학생당 하루 1건) 심리기법 체크 + 짧은 기록 |
-| `reflection_questions` | 교사가 학급별로 만드는 성찰 문항 (러닝앱의 day_questions 대응, class_id 소유) |
-| `reflection_answers` | 학생별·문항별·날짜별 답변 (`unique(student_id, question_id, log_date)`) |
+| `days` | **(v3 신규)** 학급 안의 "일차". `class_id` 소유, `order_index`로 정렬, `title` |
+| `read_contents` / `learn_contents` | 교사가 등록하는 콘텐츠. **(v3) `day_id` 소유로 변경**(이전엔 `class_id`). 이미지 URL은 쉼표로 여러 개, 학생에게는 `visible=true`만 노출 |
+| `shooting_logs` | 학생당 일차 1건(`unique(student_id, day_id)`, **v3에서 `log_date`→`day_id`로 변경**) 탄착 마커·명중수·조준보정 문구·사이트 전/후. `day_title` 등 조회 편의용 비정규화 컬럼 포함 |
+| `reflections` | 학생당 일차 1건(`unique(student_id, day_id)`) 심리기법 체크 + 짧은 기록 |
+| `reflection_questions` | 교사가 **일차별로** 만드는 성찰 문항 (러닝앱의 day_questions 대응, **v3에서 `class_id`→`day_id` 소유로 변경**) |
+| `reflection_answers` | 학생별·문항별 답변 (`unique(student_id, question_id)`, **v3에서 `log_date` 제거** — 문항 자체가 일차에 속하므로 날짜가 불필요해짐) |
 
-**보안 설계**: 모든 테이블에 RLS를 켜두고, `read_contents`/`learn_contents`의 "visible=true row만 select" 정책 외에는 **직접 테이블 접근을 전부 막는다**. 모든 읽기/쓰기는 SECURITY DEFINER RPC 함수를 통해서만 하고, 함수 내부에서 `auth.uid()`로 신원(학생 또는 교사)을 확인한다. 관리자 함수들은 `assert_class_owner(p_class_id)`로 "지금 로그인한 교사가 이 학급의 `teacher_id`와 일치하는가"만 확인한다. 이 패턴(익명 인증 + SECURITY DEFINER RPC + RLS)은 새싹책방 앱에서 실제로 검증된 방식을 그대로 따른 것이다.
+**보안 설계**: 모든 테이블에 RLS를 켜두고, `days`/`read_contents`/`learn_contents`/`reflection_questions`의 "select만 허용"(콘텐츠 조회용) 정책 외에는 **직접 테이블 접근을 전부 막는다**. 모든 읽기/쓰기는 SECURITY DEFINER RPC 함수를 통해서만 하고, 함수 내부에서 `auth.uid()`로 신원(학생 또는 교사)을 확인한다. 관리자 함수들은 `assert_class_owner(p_class_id)`(학급 단위) 또는 `assert_day_owner(p_day_id)`(일차 단위, 내부적으로 `days.class_id`를 거쳐 교사 소유를 확인)로 권한을 확인한다. 이 패턴(익명 인증 + SECURITY DEFINER RPC + RLS)은 새싹책방 앱에서 실제로 검증된 방식을 그대로 따른 것이다.
+
+**v3 마이그레이션 주의**: `read_contents`/`learn_contents`/`reflection_questions`/`shooting_logs`/`reflections`/`reflection_answers` 6개 테이블은 구조가 바뀌어 `schema.sql`이 `DROP TABLE ... CASCADE` 후 재생성한다(당시 실제 콘텐츠·기록 데이터가 없어서 안전하게 내린 선택). `teachers`/`classes`/`students`/`equipment`는 그대로 유지된다. 이미 콘텐츠·기록을 입력한 뒤에 이 SQL을 다시 실행하면 그 데이터는 사라지니 주의할 것.
 
 **교사 계정 (v2, 최초 버전의 "학급코드+관리자코드" 방식에서 교체됨)**: 아이디+비밀번호 계정 시스템. 교사 1명이 여러 학급을 만들 수 있고, 로그인 후 `ClassPicker`에서 관리할 학급을 고른다. "아이디 찾기"/"비밀번호 찾기"는 **이메일 발송 인프라가 없어서** 실제 이메일을 보내지 않고, 가입 시 등록한 이메일이 일치하면 그 자리에서 바로 아이디를 보여주거나 새 비밀번호를 설정하게 해준다 — 진짜 이메일 인증 루프는 아니지만, 학교 내부용 저위험 도구라 이 정도면 충분하다고 판단했다. 나중에 진짜 이메일을 보내고 싶으면 러닝 앱 인수인계서에서 설명한 `supabase.functions.invoke('send-password-reset')` 패턴(Supabase Edge Function + 이메일 서비스)을 참고할 것.
 
@@ -128,4 +139,6 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 
 ## 8. 스모크 테스트 이력
 
-`npm run build`, `npm run lint` 통과 확인. Playwright로 역할 선택 화면·학생 로그인·학생 5개 탭·과녁 탭 마커 찍기→저장(조준 보정 문구 포함)·교사 로그인/가입/아이디찾기/비밀번호찾기 화면·학급 선택(ClassPicker)·학급 관리 서브탭(학생·기록/읽어보기/배워보기) 까지 목(mock) Supabase 응답으로 콘솔 에러 없이 동작하는 것을 확인했다. GitHub Actions 빌드+배포도 실제로 성공해서 라이브 URL에 올라가 있다 (§7 참고). 다만 실제 Supabase 프로젝트에 대고 진짜 로그인/회원가입까지 이 세션의 샌드박스에서 직접 눌러보지는 못했다 — 샌드박스의 아웃바운드 네트워크 정책이 임의의 외부 도메인(발급받은 Supabase 프로젝트 서브도메인 포함)을 막고 있기 때문. 실제 브라우저(교사/학생 기기)에서는 문제 없이 접속된다.
+`npm run build`, `npm run lint` 통과 확인. Playwright로 (구버전 기준) 역할 선택 화면·학생 로그인·학생 5개 탭·과녁 탭 마커 찍기→저장(조준 보정 문구 포함)·교사 로그인/가입/아이디찾기/비밀번호찾기 화면·학급 선택(ClassPicker)·학급 관리 서브탭까지 목(mock) Supabase 응답으로 콘솔 에러 없이 동작하는 것을 확인했다. **v3(일차 구조) 이후에는** 학생 플로우(학생 로그인 → 일차 탭 → 일차 목록 → 일차 선택 → STEP1~4 전환 → 일차 목록으로 돌아가기)와 관리자 플로우(교사 로그인 → 학급 선택 → 일차 관리 탭 → 새 일차 추가 → 일차 선택 → STEP1/2/4 콘텐츠 편집 화면 진입)를 각각 목 Supabase 응답으로 다시 확인했고 콘솔 에러 없음. GitHub Actions 빌드+배포도 실제로 성공해서 라이브 URL에 올라가 있다 (§7 참고). 다만 실제 Supabase 프로젝트에 대고 진짜 로그인/회원가입까지 이 세션의 샌드박스에서 직접 눌러보지는 못했다 — 샌드박스의 아웃바운드 네트워크 정책이 임의의 외부 도메인(발급받은 Supabase 프로젝트 서브도메인 포함)을 막고 있기 때문. 실제 브라우저(교사/학생 기기)에서는 문제 없이 접속된다.
+
+**아직 사용자가 확인해주지 않은 부분**: v2(교사 계정 시스템 전환) 때 "column reference username is ambiguous" 오류가 있었고, 수정 SQL을 재실행하라고 안내한 뒤 사용자가 "함"이라고만 답해서 실제로 계정 만들기가 성공했는지 최종 확인을 못 받았다. v3 SQL을 실행하면서 계정 만들기/로그인부터 다시 한 번 정상 동작하는지 확인해보는 게 좋다.
