@@ -1,0 +1,56 @@
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
+
+// https://vite.dev/config/
+export default defineConfig({
+  base: process.env.GH_PAGES ? '/level-up-archery/' : '/',
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      includeAssets: ['favicon.svg'],
+      workbox: {
+        cleanupOutdatedCaches: true,
+        // 기본 네비게이션 폴백(캐시 우선)을 끄고, 아래 NetworkFirst 규칙이
+        // 모든 화면 이동 요청을 대신 처리하게 함
+        navigateFallback: null,
+        // 카카오톡 인앱 브라우저처럼 서비스워커 업데이트가 느리거나 잘 안 잡히는
+        // 환경에서도, 페이지를 열 때마다 일단 네트워크에서 최신 버전을 먼저
+        // 시도하도록 함 (오프라인일 때만 캐시된 화면으로 대체됨)
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-shell',
+              networkTimeoutSeconds: 3,
+              // 브라우저/웹뷰 자체의 HTTP 캐시까지 건너뛰고 항상 진짜 네트워크로
+              // 요청하도록 함 (카카오톡 인앱 브라우저 등에서 오래된 응답이
+              // 그대로 재사용되는 걸 방지)
+              fetchOptions: { cache: 'no-store' },
+            },
+          },
+        ],
+      },
+      manifest: {
+        name: 'LEVEL-UP ARCHERY',
+        short_name: '양궁 성장일지',
+        description: '읽고, 배우고, 기록하고, 성찰하는 양궁 성장일지',
+        theme_color: '#1f3a63',
+        background_color: '#eee7d6',
+        display: 'standalone',
+        start_url: '.',
+        scope: '.',
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      },
+    }),
+  ],
+})
