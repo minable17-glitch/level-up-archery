@@ -11,7 +11,7 @@ const RINGS = [
 const MAX_MARKERS = 10;
 const OUT_OF_FACE_DISTANCE = 1.15;
 
-export default function TargetFace({ markers, onAddMarker, onRemoveMarker }) {
+export default function TargetFace({ markers, onAddMarker }) {
   const ref = useRef(null);
 
   function handleClick(e) {
@@ -51,11 +51,7 @@ export default function TargetFace({ markers, onAddMarker, onRemoveMarker }) {
           <div
             key={i}
             className="target-marker"
-            style={{ left: `${(m.x + 1) / 2 * 100}%`, top: `${(1 - m.y) / 2 * 100}%` }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemoveMarker(i);
-            }}
+            style={{ left: `${(m.x + 1) / 2 * 100}%`, top: `${(1 - m.y) / 2 * 100}%`, pointerEvents: 'none' }}
           >
             ✕
           </div>

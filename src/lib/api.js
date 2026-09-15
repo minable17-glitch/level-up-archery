@@ -165,11 +165,11 @@ export async function saveShootingLog(payload) {
     p_bow_number: payload.bowNumber,
     p_markers: payload.markers,
     p_hit_count: payload.hitCount,
-    p_group_center_x: payload.groupCenterX,
-    p_group_center_y: payload.groupCenterY,
-    p_aim_advice: payload.aimAdvice,
-    p_sight_before: payload.sightBefore,
-    p_sight_after: payload.sightAfter,
+    p_group_center_x: null,
+    p_group_center_y: null,
+    p_aim_advice: null,
+    p_sight_before: null,
+    p_sight_after: null,
   });
   if (error) throw error;
 }

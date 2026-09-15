@@ -4,7 +4,7 @@
 
 ## 1. 프로젝트 개요
 
-- **무엇**: 중학교 체육(양궁) 수업용 웹앱. 학생이 (1) 자기 활·조준 데이터를 관리하며 오조준(조준 보정)을 스스로 하고, (2) 심리기술을 읽고·배우고·기록하고·성찰하며, (3) 이 기록이 수행평가 자료로 축적되게 한다.
+- **무엇**: 중학교 체육(양궁) 수업용 웹앱. 학생이 (1) 활 번호를 적고 과녁에 맞은 자리를 기록하며, (2) 심리기술을 읽고·배우고·성찰 문항에 답하며, (3) 이 기록이 수행평가 자료로 축적되게 한다. (초기 버전엔 앱이 자동으로 사이트 조준을 제안하는 "조준 보정 코치" 기능이 있었으나, 교사가 학생을 **의도적으로 오조준시켜 스스로 조정하게 하는 수업 방식**이라 이 기능은 필요 없다고 해서 전부 제거했다 — 아래 §7 참고.)
 - **누구를 위해**: 비개발자 교사(minable17@gmail.com)가 실제 학급에서 운영할 예정. 학생은 모바일에서 주로 사용.
 - **다른 프로젝트와의 관계**: 같은 교사가 운영하는 "새싹책방"(독서 챌린지 앱, `minable17-glitch/Mingit1` 저장소)이 별도로 있다. **처음에는 이 앱도 그 저장소의 브랜치 하나로 같이 만들었다가, GitHub Pages 배포 주소가 같은 저장소 안에서 서로 충돌하는 문제 때문에 이 저장소(`level-up-archery`)로 완전히 분리했다.** 그래서 코드 스타일/패턴이 그 저장소의 것과 많이 닮아 있다 (의도적으로 재사용함). **두 앱은 서로 다른 Supabase 프로젝트를 쓴다** — 절대 같은 Supabase 프로젝트/키를 공유하면 안 됨.
 - **원본 기획서**: 교사가 제공한 구현 명세서(사용자 메시지)와, 같은 교사의 러닝 성찰일지 앱에서 얻은 교훈을 정리한 인수인계서(업로드 파일)를 함께 참고해서 만들었다. 명세서는 Google Apps Script 스택을 제안했지만, 실제로는 새싹책방에서 이미 검증된 **React + Vite + Supabase** 스택을 그대로 재사용했다 (같은 교사가 관리하기 쉽고, 이미 겪은 함정을 피할 수 있어서).
@@ -43,13 +43,13 @@ RoleGate   "역할을 선택하세요" — 학생으로 로그인 / 선생님으
   ├ 학생으로 로그인
   │  StudentLoginGate   학급 코드 + 학번 + 이름 + PIN(4자리) 로그인 (최초 로그인 = 자동 등록)
   │    └ 하단 탭 2개
-  │        내 장비   활 번호 · 조/사대 위치 · 사이트 세팅 저장 (일차와 무관, 학생당 1건)
+  │        내 장비   활 번호 · 조/사대 위치만 저장 (사이트 세팅 필드는 제거됨, 일차와 무관, 학생당 1건)
   │        일차     DayList(일차 목록) → 일차 선택 → DayView
   │                   DayView 안에 STEP 1~4 pill 네비게이션
   │                     STEP 1 읽어보기   이미지 콘텐츠 카드 목록 → 상세(이미지 세로 스크롤)
   │                     STEP 2 배워보기   영상(유튜브 embed/직접 재생) + 이미지 + 설명, 박스 호흡 타이머 포함
-  │                     STEP 3 기록하기   과녁 탭 마커 기록 + 명중 수 자동 집계 + 조준 보정 코치 (핵심 기능)
-  │                     STEP 4 성찰하기   심리기법 체크 + 짧은 기록 + 교사가 만든 성찰 문항에 답변 (일차당 1건 업서트)
+  │                     STEP 3 기록하기   활 번호 입력 + 과녁 탭 마커 기록 + 명중 수 자동 집계 (조준 보정 코치는 제거됨)
+  │                     STEP 4 성찰하기   교사가 만든 성찰 문항에 답변만 (심리기법 체크·짧은 메모는 제거됨, 일차당 1건 업서트)
   └ 선생님으로 로그인 → AdminTab
        AuthScreen       아이디/비밀번호 로그인, 계정 만들기, 아이디 찾기(이메일), 비밀번호 찾기(아이디+이메일)
        ClassPicker      로그인한 교사가 만든 학급 목록 + 새 학급 만들기 (교사 1명이 여러 학급 가능)
@@ -72,20 +72,19 @@ src/
     date.js                   KST 날짜 유틸 (그대로 재사용 가능한 범용 코드)
     session.js                localStorage 학생 세션 + 저장된 학급 코드
     api.js                    모든 Supabase RPC 호출 래퍼
-    aimCoach.js                조준 보정 로직 (순수 함수, 아래 §5 참고)
     media.js                   유튜브 URL → embed 변환, 쉼표구분 URL 파싱
     upload.js                  Supabase Storage(`content-uploads` 버킷)로 이미지/영상 파일 업로드 후 공개 URL 반환
   components/
     RoleGate.jsx                 첫 화면 역할 선택(학생/선생님)
     StudentLoginGate.jsx
-    EquipmentTab.jsx
+    EquipmentTab.jsx              활 번호 · 조/사대 위치만 (사이트 세팅 필드 제거됨)
     DayList.jsx                  학생용 일차 목록 (classId → 일차 카드 리스트)
-    DayView.jsx                  학생용 일차 상세: STEP1~4 pill 네비게이션 + Read/Learn/Record/ReflectTab을 dayId로 렌더
+    DayView.jsx                  학생용 일차 상세: STEP1~4 pill 네비게이션 + Read/Learn/Record/ReflectTab을 dayId로 렌더 (equipment는 활 번호 프리필용으로만 전달, 더 이상 게이트 아님)
     ReadTab.jsx / LearnTab.jsx    dayId prop 기준으로 콘텐츠 조회 (이전엔 classId 기준)
-    TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어)
-    RecordTab.jsx                 기록하기 화면 본체 (dayId·dayTitle prop, 일차당 1건 업서트)
+    TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어). 마커는 pointer-events:none이라 탭해도 지워지지 않음 — 삭제는 RecordTab의 "마지막 취소"/"전체 지우기" 버튼으로만 가능
+    RecordTab.jsx                 기록하기 화면 본체 (dayId prop, 활 번호를 이 화면에서 직접 입력, 장비 등록 없이 바로 진입 가능, 일차당 1건 업서트, 조준 보정 코치 제거됨)
     BoxBreathing.jsx              박스 호흡(4-4-4-4) 타이머 위젯
-    ReflectTab.jsx                 dayId prop 기준 (일차당 1건 업서트)
+    ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트)
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
     AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
@@ -95,14 +94,9 @@ src/
 supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Editor에서 실행)
 ```
 
-## 5. 조준 보정 로직 ("Follow the arrow", `src/lib/aimCoach.js`)
+## 5. (제거됨) 조준 보정 로직
 
-- 과녁 중심을 (0,0), 반지름을 1로 정규화한 좌표계 사용 (x: 오른쪽 +, y: 위쪽 +).
-- 마커가 **3발 미만**이면 보정 안내를 하지 않고 "몇 발 더 필요해요"만 표시 (한 발의 실수에 휘둘리지 않도록).
-- 탄착군 평균 좌표를 구해서, 중심에서 반지름의 10% 이상 벗어난 축만 방향을 판정.
-- 규칙: 화살이 몰린 방향과 **같은 방향**으로 사이트를 옮기게 안내 (사이트를 그 방향으로 옮기면 재조준 과정에서 활 전체가 반대로 보정되어 다음 화살이 중앙으로 옴). 왼쪽으로 몰렸으면 "사이트를 왼쪽으로", 위로 몰렸으면 "사이트를 위로".
-- 수치 보정량은 강제하지 않고 "조금씩 옮기고 다시 쏴서 확인" 원칙만 안내. 보정 후 세팅값은 학생이 `sight_after`에 직접 입력.
-- 이 로직은 순수 함수라 유닛 테스트를 붙이기 쉽다 (아직 테스트 파일은 없음 — 필요하면 `computeAimAdvice`/`computeGroupCenter`를 대상으로 추가할 것).
+이전엔 `src/lib/aimCoach.js`에 "Follow the arrow" 조준 보정 코치 로직(탄착군 평균 좌표를 구해 사이트를 어느 방향으로 옮길지 안내)이 있었으나, 학생을 의도적으로 오조준시켜 스스로 조정하게 하는 수업 방식이라 **전체 삭제했다** (파일도 지움). `RecordTab`은 이제 활 번호 입력 + 과녁 탭 마커 기록 + 명중 수 집계만 한다. `save_shooting_log` RPC는 하위 호환을 위해 `p_group_center_x/y`, `p_aim_advice`, `p_sight_before/after` 파라미터를 여전히 받지만, 프런트엔드는 전부 `null`을 보낸다(스키마 변경 없이 프런트만 단순화).
 
 ## 6. DB 스키마 요약 (`supabase/schema.sql`)
 
@@ -111,11 +105,11 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 | `teachers` | 교사 계정: 아이디(unique)+비밀번호 해시+이메일, `auth_user_id`로 현재 익명 세션과 연결 |
 | `classes` | 학급 이름, 학급 코드(학생용), `teacher_id`로 소유 교사 연결 |
 | `students` | 학번+이름+PIN해시, `auth_user_id`로 현재 익명 세션과 연결 |
-| `equipment` | 학생별 활 번호·조/사대·사이트 세팅 (student_id가 PK, upsert) |
+| `equipment` | 학생별 활 번호·조/사대 (student_id가 PK, upsert). `sight_vertical`/`sight_horizontal`/`sight_note` 컬럼은 DB엔 남아있지만 프런트엔드에서 더 이상 읽거나 쓰지 않음(항상 null로 저장) |
 | `days` | **(v3 신규)** 학급 안의 "일차". `class_id` 소유, `order_index`로 정렬, `title` |
 | `read_contents` / `learn_contents` | 교사가 등록하는 콘텐츠. **(v3) `day_id` 소유로 변경**(이전엔 `class_id`). 이미지 URL은 쉼표로 여러 개, 학생에게는 `visible=true`만 노출 |
-| `shooting_logs` | 학생당 일차 1건(`unique(student_id, day_id)`, **v3에서 `log_date`→`day_id`로 변경**) 탄착 마커·명중수·조준보정 문구·사이트 전/후. `day_title` 등 조회 편의용 비정규화 컬럼 포함 |
-| `reflections` | 학생당 일차 1건(`unique(student_id, day_id)`) 심리기법 체크 + 짧은 기록 |
+| `shooting_logs` | 학생당 일차 1건(`unique(student_id, day_id)`) 탄착 마커·명중수. `group_center_x/y`/`aim_advice`/`sight_before`/`sight_after` 컬럼은 남아있지만 조준 보정 코치 제거 이후 항상 null. `day_title` 등 조회 편의용 비정규화 컬럼 포함 |
+| `reflections` | 학생당 일차 1건(`unique(student_id, day_id)`). `used_skills`/`short_note` 컬럼은 남아있지만 학생 화면에서 UI가 빠져서 항상 빈 값(`{}`/null)으로 저장됨 — 이 행 자체는 성찰 문항 답변을 관리자 화면에 묶어 보여주기 위한 뼈대로 계속 저장됨 |
 | `reflection_questions` | 교사가 **일차별로** 만드는 성찰 문항 (러닝앱의 day_questions 대응, **v3에서 `class_id`→`day_id` 소유로 변경**) |
 | `reflection_answers` | 학생별·문항별 답변 (`unique(student_id, question_id)`, **v3에서 `log_date` 제거** — 문항 자체가 일차에 속하므로 날짜가 불필요해짐) |
 

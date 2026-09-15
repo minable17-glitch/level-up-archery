@@ -18,7 +18,6 @@ export default function App() {
   // 'student' | 'admin' | null(=역할 선택 화면). 이미 로그인된 학생이 있으면 바로 학생 화면으로.
   const [mode, setMode] = useState(() => (getSession() ? 'student' : null));
   const [equipment, setEquipment] = useState(null);
-  const [equipmentLoaded, setEquipmentLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('equipment');
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -30,18 +29,10 @@ export default function App() {
         const eq = await getMyEquipment();
         if (cancelled) return;
         if (eq) {
-          setEquipment({
-            bowNumber: eq.bow_number,
-            laneInfo: eq.lane_info,
-            sightVertical: eq.sight_vertical,
-            sightHorizontal: eq.sight_horizontal,
-            sightNote: eq.sight_note,
-          });
+          setEquipment({ bowNumber: eq.bow_number, laneInfo: eq.lane_info });
         }
       } catch {
         /* 아직 장비 등록 전이거나 세션이 만료됨 — 등록 화면에서 다시 시도 */
-      } finally {
-        if (!cancelled) setEquipmentLoaded(true);
       }
     })();
     return () => { cancelled = true; };
@@ -52,7 +43,6 @@ export default function App() {
     clearSession();
     setStudent(null);
     setEquipment(null);
-    setEquipmentLoaded(false);
     setActiveTab('equipment');
     setSelectedDay(null);
     setMode(null);
@@ -104,13 +94,7 @@ export default function App() {
           <DayList classId={student.classId} onSelectDay={setSelectedDay} />
         )}
         {activeTab === 'days' && selectedDay && (
-          <DayView
-            day={selectedDay}
-            equipment={equipment}
-            equipmentLoaded={equipmentLoaded}
-            onGoToEquipment={() => { setSelectedDay(null); setActiveTab('equipment'); }}
-            onBack={() => setSelectedDay(null)}
-          />
+          <DayView day={selectedDay} equipment={equipment} onBack={() => setSelectedDay(null)} />
         )}
       </div>
       <div className="bottom-nav">

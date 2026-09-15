@@ -11,7 +11,7 @@ const STEPS = [
   { key: 'reflect', label: 'STEP 4 성찰하기' },
 ];
 
-export default function DayView({ day, equipment, equipmentLoaded, onGoToEquipment, onBack }) {
+export default function DayView({ day, equipment, onBack }) {
   const [step, setStep] = useState('read');
 
   return (
@@ -32,10 +32,9 @@ export default function DayView({ day, equipment, equipmentLoaded, onGoToEquipme
 
       {step === 'read' && <ReadTab key={day.id} dayId={day.id} />}
       {step === 'learn' && <LearnTab key={day.id} dayId={day.id} />}
-      {step === 'record' && equipmentLoaded && (
-        <RecordTab key={day.id} dayId={day.id} dayTitle={day.title} equipment={equipment} onGoToEquipment={onGoToEquipment} />
+      {step === 'record' && (
+        <RecordTab key={day.id} dayId={day.id} equipment={equipment} />
       )}
-      {step === 'record' && !equipmentLoaded && <div className="card center muted">불러오는 중...</div>}
       {step === 'reflect' && <ReflectTab key={day.id} dayId={day.id} />}
     </div>
   );

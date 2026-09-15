@@ -82,7 +82,7 @@ export default function AdminRecords({ classId }) {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>일차</th><th>학번</th><th>이름</th><th>활</th><th>명중</th><th>보정 안내</th><th>세팅(전→후)</th>
+                <th>일차</th><th>학번</th><th>이름</th><th>활</th><th>명중</th>
               </tr>
             </thead>
             <tbody>
@@ -93,8 +93,6 @@ export default function AdminRecords({ classId }) {
                   <td>{l.student_name}</td>
                   <td>{l.bow_number}</td>
                   <td>{l.hit_count}</td>
-                  <td style={{ whiteSpace: 'normal', maxWidth: 220 }}>{l.aim_advice}</td>
-                  <td>{l.sight_before} → {l.sight_after}</td>
                 </tr>
               ))}
             </tbody>
