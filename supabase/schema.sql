@@ -907,10 +907,25 @@ grant execute on function admin_list_reflection_answers(uuid, int) to anon, auth
 -- ── 콘텐츠 파일 업로드(Storage): 읽어보기/배워보기 이미지·영상 직접 업로드 ──
 -- 버킷은 공개 읽기(콘텐츠 자체가 민감하지 않음)이고, 업로드/수정/삭제는
 -- teachers 테이블에 auth_user_id가 연결된 사람(=로그인한 교사)만 가능하다.
+--
+-- 주의: storage.objects의 RLS 정책 본문은 "정책을 평가하는 요청자 권한"으로
+-- 실행되기 때문에, 정책 안에서 바로 `exists (select 1 from teachers ...)`처럼
+-- teachers 테이블을 조회하면 teachers 테이블 자체의 RLS(직접 select 정책 없음,
+-- SECURITY DEFINER 함수를 통해서만 읽도록 잠가둠)에 막혀 항상 결과가 없다고
+-- 나온다 — 그래서 로그인한 교사인데도 "new row violates row-level security
+-- policy"가 났던 것. 아래처럼 SECURITY DEFINER 함수로 감싸서 그 함수 안에서만
+-- teachers를 조회하게 하면 함수 소유자 권한으로 실행되어 RLS를 우회한다.
 
 insert into storage.buckets (id, name, public)
 values ('content-uploads', 'content-uploads', true)
 on conflict (id) do update set public = true;
+
+create or replace function is_current_teacher()
+returns boolean
+language sql security definer set search_path = public, extensions as $$
+  select exists (select 1 from teachers where teachers.auth_user_id = auth.uid());
+$$;
+grant execute on function is_current_teacher() to anon, authenticated;
 
 drop policy if exists "content-uploads_select" on storage.objects;
 create policy "content-uploads_select" on storage.objects
@@ -919,22 +934,19 @@ create policy "content-uploads_select" on storage.objects
 drop policy if exists "content-uploads_insert" on storage.objects;
 create policy "content-uploads_insert" on storage.objects
   for insert with check (
-    bucket_id = 'content-uploads'
-    and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
+    bucket_id = 'content-uploads' and is_current_teacher()
   );
 
 drop policy if exists "content-uploads_update" on storage.objects;
 create policy "content-uploads_update" on storage.objects
   for update using (
-    bucket_id = 'content-uploads'
-    and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
+    bucket_id = 'content-uploads' and is_current_teacher()
   );
 
 drop policy if exists "content-uploads_delete" on storage.objects;
 create policy "content-uploads_delete" on storage.objects
   for delete using (
-    bucket_id = 'content-uploads'
-    and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
+    bucket_id = 'content-uploads' and is_current_teacher()
   );
 
 -- ── 관리자: 학생 상세(일차별 기록 조회·삭제) + 비밀번호(PIN) 재설정 ──
