@@ -324,6 +324,25 @@ button, input, textarea, select {
   opacity: 0.6;
 }
 
+.target-suggested {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  color: #2563eb;
+  font-size: 24px;
+  line-height: 28px;
+  text-align: center;
+  text-shadow: 0 0 4px #fff, 0 0 4px #fff, 0 0 4px #fff;
+  animation: target-suggested-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes target-suggested-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
 .hit-count {
   text-align: center;
   font-size: 15px;

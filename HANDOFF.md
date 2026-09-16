@@ -92,7 +92,8 @@ src/
     AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
     AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
-    AdminRecords.jsx              학생/슈팅기록/성찰기록(답변 포함) 조회 (학급 전체, day_title로 표시)
+    AdminRecords.jsx              학급 전체 슈팅기록/성찰기록 요약 표 + 학생 명단(이름 클릭 시 AdminStudentDetail로 드릴다운)
+    AdminStudentDetail.jsx        특정 학생의 기록을 일차별로 묶어 보여줌(슈팅 기록 + 성찰 답변), 일차별 "기록 삭제" 버튼, 비밀번호(PIN) 재설정 폼
 
 supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Editor에서 실행)
 ```
@@ -101,6 +102,7 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 
 - 최초엔 사이트(조준기) 세팅값을 어느 방향으로 옮길지 제안하는 "조준 보정 코치"(`src/lib/aimCoach.js`)가 있었는데, 학생을 의도적으로 오조준시켜 스스로 물리적 사이트를 조정하게 하는 수업 방식이라 **완전히 삭제**했었다. 그 다음에 "명중 판정을 빨강·금색 안쪽으로만 제한하고, 탄착군을 보고 조준 방향/자세 피드백을 달라"는 요청이 들어와서, **사이트 세팅과 무관한 훨씬 가벼운 형태로 다시 만들었다** — `aimCoach.js`(삭제됨, 사이트 값 입력·저장까지 다루던 구버전)와는 별개의 새 파일 `aimFeedback.js`다.
 - **명중(명중 수) 판정**: 과녁 중심에서 반지름의 `HIT_RADIUS = 0.4` 이내(빨강+금색 영역)에 탭한 것만 "명중"으로 집계한다. `TargetFace.jsx`에서 각 마커의 중심 거리를 계산해 그 안쪽이면 초록 `●`(hit), 바깥쪽(흰색/검정/파랑 영역, 과녁에는 맞았지만 명중은 아님)이면 흐린 흰색 `✕`(non-hit)로 다르게 표시한다. `RecordTab`은 `hitCount = markers.filter(안쪽).length`를 계산해서 저장한다(더 이상 `markers.length` 전체가 아님).
+- **다음 조준 지점 표시(참고용)**: 탄착군이 잘 모였는데 중앙에서 벗어난 경우(`kind: 'warn'`, offset 케이스), `computeAimFeedback`이 탄착군 중심을 과녁 중심 기준으로 대칭 이동한 좌표를 `suggestedAimPoint`로 함께 반환한다. `TargetFace`가 그 위치에 파란 `◎`를 펄스 애니메이션으로 표시해서 "대략 이 방향으로 조준해보라"는 시각적 힌트를 준다(탄착군이 흩어진 경우·잘 모인 경우엔 `suggestedAimPoint`가 `null`이라 표시 안 됨).
 - **탄착군 피드백**: 명중 여부와 무관하게 **과녁에 맞은 모든 마커**(non-hit 포함)의 평균 좌표(탄착군 중심)와 평균 퍼짐(각 마커의 중심으로부터 거리 평균)을 계산한다.
   - 마커 3발 미만 → "더 쏴야 피드백 가능" 안내.
   - 퍼짐이 넓으면(`GROUP_SPREAD_THRESHOLD=0.35` 초과) → 방향 안내 대신 **자세 피드백**("탄착군이 고르게 모이지 않았어요... 자세 문제일 수 있어요").
@@ -124,7 +126,9 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 | `reflection_questions` | 교사가 **일차별로** 만드는 성찰 문항 (러닝앱의 day_questions 대응, **v3에서 `class_id`→`day_id` 소유로 변경**) |
 | `reflection_answers` | 학생별·문항별 답변 (`unique(student_id, question_id)`, **v3에서 `log_date` 제거** — 문항 자체가 일차에 속하므로 날짜가 불필요해짐) |
 
-**보안 설계**: 모든 테이블에 RLS를 켜두고, `days`/`read_contents`/`learn_contents`/`reflection_questions`의 "select만 허용"(콘텐츠 조회용) 정책 외에는 **직접 테이블 접근을 전부 막는다**. 모든 읽기/쓰기는 SECURITY DEFINER RPC 함수를 통해서만 하고, 함수 내부에서 `auth.uid()`로 신원(학생 또는 교사)을 확인한다. 관리자 함수들은 `assert_class_owner(p_class_id)`(학급 단위) 또는 `assert_day_owner(p_day_id)`(일차 단위, 내부적으로 `days.class_id`를 거쳐 교사 소유를 확인)로 권한을 확인한다. 이 패턴(익명 인증 + SECURITY DEFINER RPC + RLS)은 새싹책방 앱에서 실제로 검증된 방식을 그대로 따른 것이다.
+**보안 설계**: 모든 테이블에 RLS를 켜두고, `days`/`read_contents`/`learn_contents`/`reflection_questions`의 "select만 허용"(콘텐츠 조회용) 정책 외에는 **직접 테이블 접근을 전부 막는다**. 모든 읽기/쓰기는 SECURITY DEFINER RPC 함수를 통해서만 하고, 함수 내부에서 `auth.uid()`로 신원(학생 또는 교사)을 확인한다. 관리자 함수들은 `assert_class_owner(p_class_id)`(학급 단위), `assert_day_owner(p_day_id)`(일차 단위, 내부적으로 `days.class_id`를 거쳐 교사 소유를 확인), 또는 `assert_student_owner(p_student_id)`(학생 단위, `students.class_id`를 거쳐 확인)로 권한을 확인한다. 이 패턴(익명 인증 + SECURITY DEFINER RPC + RLS)은 새싹책방 앱에서 실제로 검증된 방식을 그대로 따른 것이다.
+
+**관리자: 학생별 기록 조회·삭제·PIN 재설정**: `AdminRecords`의 학생 명단에서 이름을 누르면 `AdminStudentDetail`로 드릴다운되어, 그 학생의 기록을 **일차별로 묶어서** 보여준다(슈팅 기록 + 그 일차의 성찰 문항 답변). 관련 RPC: `admin_list_student_shooting_logs(p_student_id)`, `admin_list_student_reflection_answers(p_student_id)`(reflection_answers를 days/reflection_questions와 조인해 day_title·question_text까지 한 번에 반환), `admin_delete_student_day_record(p_student_id, p_day_id)`(그 학생의 그 일차 슈팅 기록 + 성찰 답변을 한 번에 삭제 — 행 단위가 아니라 "일차 단위" 삭제), `admin_reset_student_pin(p_student_id, p_new_pin)`(학생이 PIN을 잊어버렸을 때 교사가 4자리 숫자로 재설정). 전부 `assert_student_owner`로 권한 확인.
 
 **v3 마이그레이션 주의**: `read_contents`/`learn_contents`/`reflection_questions`/`shooting_logs`/`reflections`/`reflection_answers` 6개 테이블은 구조가 바뀌어 `schema.sql`이 `DROP TABLE ... CASCADE` 후 재생성한다(당시 실제 콘텐츠·기록 데이터가 없어서 안전하게 내린 선택). `teachers`/`classes`/`students`/`equipment`는 그대로 유지된다. 이미 콘텐츠·기록을 입력한 뒤에 이 SQL을 다시 실행하면 그 데이터는 사라지니 주의할 것.
 

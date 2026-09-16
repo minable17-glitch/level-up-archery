@@ -317,3 +317,25 @@ export async function adminListReflectionAnswers(classId, limit = 500) {
   if (error) throw error;
   return data || [];
 }
+
+export async function adminListStudentShootingLogs(studentId) {
+  const { data, error } = await supabase.rpc('admin_list_student_shooting_logs', { p_student_id: studentId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function adminListStudentReflectionAnswers(studentId) {
+  const { data, error } = await supabase.rpc('admin_list_student_reflection_answers', { p_student_id: studentId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function adminDeleteStudentDayRecord(studentId, dayId) {
+  const { error } = await supabase.rpc('admin_delete_student_day_record', { p_student_id: studentId, p_day_id: dayId });
+  if (error) throw error;
+}
+
+export async function adminResetStudentPin(studentId, newPin) {
+  const { error } = await supabase.rpc('admin_reset_student_pin', { p_student_id: studentId, p_new_pin: newPin });
+  if (error) throw error;
+}

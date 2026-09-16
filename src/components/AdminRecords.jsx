@@ -3,6 +3,7 @@ import {
   adminListStudents, adminListShootingLogs, adminListReflections,
   adminListReflectionQuestionsByClass, adminListReflectionAnswers,
 } from '../lib/api';
+import AdminStudentDetail from './AdminStudentDetail';
 
 export default function AdminRecords({ classId }) {
   const [students, setStudents] = useState([]);
@@ -12,6 +13,7 @@ export default function AdminRecords({ classId }) {
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,23 +52,27 @@ export default function AdminRecords({ classId }) {
   if (loading) return <div className="card center muted">불러오는 중...</div>;
   if (error) return <div className="card msg msg-error">{error}</div>;
 
+  if (selectedStudent) {
+    return <AdminStudentDetail student={selectedStudent} onBack={() => setSelectedStudent(null)} />;
+  }
+
   return (
     <div>
       <div className="card">
         <h2>학생 명단 ({students.length}명)</h2>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>이름을 누르면 그 학생의 일차별 기록을 볼 수 있어요.</p>
         <div className="scroll-x">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>학번</th><th>이름</th><th>장비등록</th><th>기록횟수</th><th>성찰횟수</th>
+                <th>학번</th><th>이름</th><th>기록횟수</th><th>성찰횟수</th>
               </tr>
             </thead>
             <tbody>
               {students.map((s) => (
-                <tr key={s.student_id}>
+                <tr key={s.student_id} onClick={() => setSelectedStudent(s)} style={{ cursor: 'pointer' }}>
                   <td>{s.student_number}</td>
-                  <td>{s.name}</td>
-                  <td>{s.has_equipment ? '✓' : '-'}</td>
+                  <td style={{ textDecoration: 'underline' }}>{s.name}</td>
                   <td>{s.shooting_log_count}</td>
                   <td>{s.reflection_count}</td>
                 </tr>

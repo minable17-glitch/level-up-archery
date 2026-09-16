@@ -12,7 +12,7 @@ const RINGS = [
 const MAX_MARKERS = 50;
 const OUT_OF_FACE_DISTANCE = 1.15;
 
-export default function TargetFace({ markers, onAddMarker }) {
+export default function TargetFace({ markers, onAddMarker, suggestedAimPoint }) {
   const ref = useRef(null);
 
   function handleClick(e) {
@@ -60,6 +60,14 @@ export default function TargetFace({ markers, onAddMarker }) {
             </div>
           );
         })}
+        {suggestedAimPoint && (
+          <div
+            className="target-suggested"
+            style={{ left: `${(suggestedAimPoint.x + 1) / 2 * 100}%`, top: `${(1 - suggestedAimPoint.y) / 2 * 100}%`, pointerEvents: 'none' }}
+          >
+            ◎
+          </div>
+        )}
       </div>
     </div>
   );

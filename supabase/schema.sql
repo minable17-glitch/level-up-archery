@@ -936,3 +936,76 @@ create policy "content-uploads_delete" on storage.objects
     bucket_id = 'content-uploads'
     and exists (select 1 from teachers where teachers.auth_user_id = auth.uid())
   );
+
+-- ── 관리자: 학생 상세(일차별 기록 조회·삭제) + 비밀번호(PIN) 재설정 ──
+
+create or replace function assert_student_owner(p_student_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if not exists (
+    select 1 from students s
+    join classes c on c.id = s.class_id
+    join teachers t on t.id = c.teacher_id
+    where s.id = p_student_id and t.auth_user_id = auth.uid()
+  ) then
+    raise exception '이 학생에 대한 권한이 없어요. 다시 로그인해주세요';
+  end if;
+end;
+$$;
+
+create or replace function admin_list_student_shooting_logs(p_student_id uuid)
+returns setof shooting_logs
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_student_owner(p_student_id);
+  return query
+    select * from shooting_logs
+    where shooting_logs.student_id = p_student_id
+    order by created_at desc;
+end;
+$$;
+grant execute on function admin_list_student_shooting_logs(uuid) to anon, authenticated;
+
+create or replace function admin_list_student_reflection_answers(p_student_id uuid)
+returns table(
+  id uuid, day_id uuid, day_title text,
+  question_id uuid, question_text text, answer_text text, created_at timestamptz
+)
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_student_owner(p_student_id);
+  return query
+    select ra.id, ra.day_id, d.title, ra.question_id, rq.question_text, ra.answer_text, ra.created_at
+    from reflection_answers ra
+    join days d on d.id = ra.day_id
+    join reflection_questions rq on rq.id = ra.question_id
+    where ra.student_id = p_student_id
+    order by d.order_index, rq.order_index;
+end;
+$$;
+grant execute on function admin_list_student_reflection_answers(uuid) to anon, authenticated;
+
+create or replace function admin_delete_student_day_record(p_student_id uuid, p_day_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_student_owner(p_student_id);
+  delete from shooting_logs where shooting_logs.student_id = p_student_id and shooting_logs.day_id = p_day_id;
+  delete from reflection_answers where reflection_answers.student_id = p_student_id and reflection_answers.day_id = p_day_id;
+end;
+$$;
+grant execute on function admin_delete_student_day_record(uuid, uuid) to anon, authenticated;
+
+create or replace function admin_reset_student_pin(p_student_id uuid, p_new_pin text)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_student_owner(p_student_id);
+  if p_new_pin !~ '^[0-9]{4}$' then
+    raise exception 'PIN은 숫자 4자리로 입력해주세요';
+  end if;
+  update students set pin_hash = crypt(p_new_pin, gen_salt('bf')) where students.id = p_student_id;
+end;
+$$;
+grant execute on function admin_reset_student_pin(uuid, text) to anon, authenticated;

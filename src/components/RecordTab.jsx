@@ -91,7 +91,7 @@ export default function RecordTab({ dayId }) {
         <p className="muted center" style={{ marginTop: 0, fontSize: 13 }}>
           화살이 맞은 자리를 과녁 위에 탭하세요. (최대 {MAX_MARKERS}발) 빨강·금색 안쪽만 명중으로 기록돼요.
         </p>
-        <TargetFace markers={markers} onAddMarker={addMarker} />
+        <TargetFace markers={markers} onAddMarker={addMarker} suggestedAimPoint={feedback.suggestedAimPoint} />
         <div className="hit-count">
           총 <b>{totalShots}</b>발 중 <b>{hitCount}</b>발 명중
         </div>
@@ -104,6 +104,11 @@ export default function RecordTab({ dayId }) {
           </button>
         </div>
         <div className={`advice-box ${feedback.kind}`}>{feedback.message}</div>
+        {feedback.suggestedAimPoint && (
+          <p className="muted center" style={{ fontSize: 12, marginTop: 6, marginBottom: 0 }}>
+            ◎ 표시가 다음에 조준해볼 대략적인 지점이에요 (참고용).
+          </p>
+        )}
 
         <div className="field" style={{ marginTop: 12 }}>
           <label>빗나간 화살 수 (과녁을 완전히 벗어난 경우)</label>

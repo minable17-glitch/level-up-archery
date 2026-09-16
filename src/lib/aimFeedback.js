@@ -21,6 +21,12 @@ function computeSpread(markers, center) {
   return total / markers.length;
 }
 
+function clampToUnit(p) {
+  const d = Math.hypot(p.x, p.y);
+  if (d <= 1) return p;
+  return { x: p.x / d, y: p.y / d };
+}
+
 export function computeAimFeedback(markers) {
   const count = markers ? markers.length : 0;
 
@@ -28,6 +34,7 @@ export function computeAimFeedback(markers) {
     return {
       kind: 'pending',
       message: `최소 ${MIN_MARKERS_FOR_FEEDBACK}발 이상 기록되면 탄착군 피드백을 받을 수 있어요. (현재 ${count}발)`,
+      suggestedAimPoint: null,
     };
   }
 
@@ -38,6 +45,7 @@ export function computeAimFeedback(markers) {
     return {
       kind: 'warn',
       message: '탄착군이 고르게 모이지 않았어요. 조준보다 자세 문제일 수 있어요 — 매번 같은 자세·호흡·릴리즈로 쏘도록 연습해보세요.',
+      suggestedAimPoint: null,
     };
   }
 
@@ -45,7 +53,7 @@ export function computeAimFeedback(markers) {
   const offY = Math.abs(center.y) > CENTER_OFFSET_THRESHOLD;
 
   if (!offX && !offY) {
-    return { kind: 'good', message: '탄착군이 잘 모여 있고 중앙에 가까워요! 지금 자세를 유지하세요.' };
+    return { kind: 'good', message: '탄착군이 잘 모여 있고 중앙에 가까워요! 지금 자세를 유지하세요.', suggestedAimPoint: null };
   }
 
   const groupDir = [];
@@ -59,8 +67,12 @@ export function computeAimFeedback(markers) {
     aimDir.push(center.x > 0 ? '왼쪽으로' : '오른쪽으로');
   }
 
+  // 탄착군 중심을 과녁 중심 기준으로 대칭 이동한 지점 = "이 방향으로 조준해보세요" 대략적인 위치.
+  const suggestedAimPoint = clampToUnit({ x: -center.x, y: -center.y });
+
   return {
     kind: 'warn',
     message: `탄착군이 잘 모여있지만 ${groupDir.join(' ')}에 몰렸어요. 다음엔 ${aimDir.join(', ')} 조준해보세요.`,
+    suggestedAimPoint,
   };
 }
