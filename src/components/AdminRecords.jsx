@@ -49,6 +49,19 @@ export default function AdminRecords({ classId }) {
     (answersByStudentQuestion[key] ||= []).push(a);
   }
 
+  const totalsByStudent = {};
+  for (const l of logs) {
+    const t = (totalsByStudent[l.student_id] ||= {
+      student_number: l.student_number, student_name: l.student_name, totalHits: 0, totalShots: 0,
+    });
+    t.totalHits += l.hit_count;
+    t.totalShots += l.hit_count + (l.miss_count || 0);
+  }
+  const ranking = Object.values(totalsByStudent)
+    .sort((a, b) => b.totalHits - a.totalHits)
+    .slice(0, 20);
+  const medals = ['🥇', '🥈', '🥉'];
+
   if (loading) return <div className="card center muted">불러오는 중...</div>;
   if (error) return <div className="card msg msg-error">{error}</div>;
 
@@ -58,6 +71,34 @@ export default function AdminRecords({ classId }) {
 
   return (
     <div>
+      <div className="card">
+        <h2>🏆 명중 랭킹 (TOP {Math.min(20, ranking.length)})</h2>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>모든 일차의 명중 발수를 합산한 순위예요.</p>
+        {ranking.length === 0 && <p className="muted">아직 슈팅 기록이 없어요.</p>}
+        {ranking.length > 0 && (
+          <div className="scroll-x">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>순위</th><th>학번</th><th>이름</th><th>총 명중</th><th>총 발수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranking.map((r, i) => (
+                  <tr key={`${r.student_number}-${r.student_name}`}>
+                    <td>{medals[i] || i + 1}</td>
+                    <td>{r.student_number}</td>
+                    <td>{r.student_name}</td>
+                    <td><b>{r.totalHits}</b></td>
+                    <td>{r.totalShots}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="card">
         <h2>학생 명단 ({students.length}명)</h2>
         <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>이름을 누르면 그 학생의 일차별 기록을 볼 수 있어요.</p>

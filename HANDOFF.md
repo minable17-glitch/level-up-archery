@@ -92,7 +92,7 @@ src/
     AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
     AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
-    AdminRecords.jsx              학급 전체 슈팅기록/성찰기록 요약 표 + 학생 명단(이름 클릭 시 AdminStudentDetail로 드릴다운)
+    AdminRecords.jsx              🏆 명중 랭킹(TOP 20, 학급 내 모든 일차 명중 발수 합산, 새 RPC 없이 이미 불러온 슈팅 기록을 클라이언트에서 집계) + 학급 전체 슈팅기록/성찰기록 요약 표 + 학생 명단(이름 클릭 시 AdminStudentDetail로 드릴다운)
     AdminStudentDetail.jsx        특정 학생의 기록을 일차별로 묶어 보여줌(슈팅 기록 + 성찰 답변), 일차별 "기록 삭제" 버튼, 비밀번호(PIN) 재설정 폼
 
 supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Editor에서 실행)
