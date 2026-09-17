@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listDays, adminCreateDay, adminUpdateDay, adminDeleteDay } from '../lib/api';
+import { listDays, adminCreateDay, adminUpdateDay, adminDeleteDay, adminCopyDay, getMyClasses } from '../lib/api';
 import AdminContentEditor from './AdminContentEditor';
 import AdminReflectionEditor from './AdminReflectionEditor';
 
@@ -40,6 +40,46 @@ function DayEditForm({ classId, day, onDone, onCancel }) {
   );
 }
 
+function CopyDayForm({ day, otherClasses, onDone, onCancel }) {
+  const [targetClassId, setTargetClassId] = useState(otherClasses[0]?.id || '');
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleCopy(e) {
+    e.preventDefault();
+    if (!targetClassId) {
+      setError('복사할 학급을 골라주세요.');
+      return;
+    }
+    setPending(true);
+    setError('');
+    try {
+      const targetClass = otherClasses.find((c) => c.id === targetClassId);
+      await adminCopyDay(day.id, targetClassId);
+      onDone(targetClass?.name || '');
+    } catch (err) {
+      setError(err.message || '복사에 실패했어요.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleCopy} className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+      <select value={targetClassId} onChange={(e) => setTargetClassId(e.target.value)} style={{ flex: 1, minWidth: 140, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}>
+        {otherClasses.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+      <button className="btn btn-accent" type="submit" disabled={pending}>
+        {pending ? '복사 중...' : '이 학급으로 복사'}
+      </button>
+      <button className="btn btn-outline" type="button" onClick={onCancel}>취소</button>
+      {error && <span className="msg msg-error" style={{ width: '100%' }}>{error}</span>}
+    </form>
+  );
+}
+
 export default function AdminDayManager({ classId }) {
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +87,9 @@ export default function AdminDayManager({ classId }) {
   const [newTitle, setNewTitle] = useState('');
   const [pending, setPending] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [copyingId, setCopyingId] = useState(null);
+  const [copyNotice, setCopyNotice] = useState('');
+  const [myClasses, setMyClasses] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [step, setStep] = useState('read');
 
@@ -69,6 +112,7 @@ export default function AdminDayManager({ classId }) {
     setLoading(true);
     setSelectedDay(null);
     void refresh();
+    getMyClasses().then(setMyClasses).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId]);
 
@@ -100,6 +144,8 @@ export default function AdminDayManager({ classId }) {
       setError(err.message || '삭제에 실패했어요.');
     }
   }
+
+  const otherClasses = myClasses.filter((c) => c.id !== classId);
 
   if (selectedDay) {
     return (
@@ -138,13 +184,14 @@ export default function AdminDayManager({ classId }) {
           </button>
         </form>
         {error && <div className="msg msg-error">{error}</div>}
+        {copyNotice && <div className="msg msg-ok">{copyNotice}</div>}
       </div>
 
       <div className="card">
         {loading && <p className="muted">불러오는 중...</p>}
         {!loading && days.length === 0 && <p className="muted">아직 등록된 일차가 없어요. 위에서 첫 일차를 만들어보세요.</p>}
         {days.map((d) => (
-          <div className="list-row" key={d.id} style={{ alignItems: 'center' }}>
+          <div className="list-row" key={d.id} style={{ alignItems: 'center', flexDirection: 'column' }}>
             {editingId === d.id ? (
               <DayEditForm
                 classId={classId}
@@ -152,16 +199,26 @@ export default function AdminDayManager({ classId }) {
                 onDone={() => { setEditingId(null); void refresh(); }}
                 onCancel={() => setEditingId(null)}
               />
+            ) : copyingId === d.id ? (
+              <CopyDayForm
+                day={d}
+                otherClasses={otherClasses}
+                onDone={(targetName) => { setCopyingId(null); setCopyNotice(`"${d.title}" 일차를 "${targetName}" 학급으로 복사했어요.`); }}
+                onCancel={() => setCopyingId(null)}
+              />
             ) : (
-              <>
+              <div className="row" style={{ width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="content-card" style={{ boxShadow: 'none', padding: 0, cursor: 'pointer' }} onClick={() => setSelectedDay(d)}>
                   {d.title}
                 </span>
                 <span className="row" style={{ flexShrink: 0 }}>
                   <button className="btn btn-outline" type="button" onClick={() => setEditingId(d.id)}>수정</button>
+                  {otherClasses.length > 0 && (
+                    <button className="btn btn-outline" type="button" onClick={() => { setCopyingId(d.id); setCopyNotice(''); }}>다른 반에 복사</button>
+                  )}
                   <button className="btn btn-danger" type="button" onClick={() => handleDelete(d)}>삭제</button>
                 </span>
-              </>
+              </div>
             )}
           </div>
         ))}

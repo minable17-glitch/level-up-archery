@@ -1021,3 +1021,42 @@ begin
 end;
 $$;
 grant execute on function admin_reset_student_pin(uuid, text) to anon, authenticated;
+
+-- ── 관리자: 일차를 다른 학급으로 복사 (읽어보기/배워보기/성찰 문항 포함) ──
+
+create or replace function admin_copy_day(p_day_id uuid, p_target_class_id uuid, p_title text default null)
+returns days
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_source days%rowtype;
+  v_new days%rowtype;
+  v_next_order int;
+begin
+  perform assert_day_owner(p_day_id);
+  perform assert_class_owner(p_target_class_id);
+
+  select * into v_source from days where days.id = p_day_id;
+
+  select coalesce(max(order_index) + 1, 0) into v_next_order
+  from days where days.class_id = p_target_class_id;
+
+  insert into days (class_id, title, order_index)
+  values (p_target_class_id, coalesce(nullif(trim(p_title), ''), v_source.title), v_next_order)
+  returning * into v_new;
+
+  insert into read_contents (day_id, title, category, image_urls, order_index, visible)
+  select v_new.id, rc.title, rc.category, rc.image_urls, rc.order_index, rc.visible
+  from read_contents rc where rc.day_id = p_day_id;
+
+  insert into learn_contents (day_id, title, category, video_url, image_urls, description, order_index, visible)
+  select v_new.id, lc.title, lc.category, lc.video_url, lc.image_urls, lc.description, lc.order_index, lc.visible
+  from learn_contents lc where lc.day_id = p_day_id;
+
+  insert into reflection_questions (day_id, question_text, activity_sheet_url, order_index, visible)
+  select v_new.id, rq.question_text, rq.activity_sheet_url, rq.order_index, rq.visible
+  from reflection_questions rq where rq.day_id = p_day_id;
+
+  return v_new;
+end;
+$$;
+grant execute on function admin_copy_day(uuid, uuid, text) to anon, authenticated;

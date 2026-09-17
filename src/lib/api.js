@@ -114,6 +114,16 @@ export async function adminDeleteDay(classId, id) {
   if (error) throw error;
 }
 
+export async function adminCopyDay(dayId, targetClassId, title) {
+  const { data, error } = await supabase.rpc('admin_copy_day', {
+    p_day_id: dayId,
+    p_target_class_id: targetClassId,
+    p_title: title || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ── 읽어보기 / 배워보기 ────────────────────────────────
 
 export async function listReadContents(dayId) {

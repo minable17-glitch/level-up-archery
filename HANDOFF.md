@@ -89,7 +89,7 @@ src/
     BoxBreathing.jsx              박스 호흡(4-4-4-4) 타이머 위젯
     ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트)
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
-    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌
+    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사)
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
     AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
     AdminRecords.jsx              🏆 명중 랭킹(TOP 20, 학급 내 모든 일차 명중 발수 합산, 새 RPC 없이 이미 불러온 슈팅 기록을 클라이언트에서 집계) + 학급 전체 슈팅기록/성찰기록 요약 표 + 학생 명단(이름 클릭 시 AdminStudentDetail로 드릴다운)
