@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { saveReflection, listReflectionQuestions, getMyReflectionAnswers, saveReflectionAnswer } from '../lib/api';
+
+const AUTOSAVE_DELAY = 800;
 
 export default function ReflectTab({ dayId }) {
   const [loading, setLoading] = useState(true);
@@ -7,6 +9,7 @@ export default function ReflectTab({ dayId }) {
   const [answers, setAnswers] = useState({}); // question_id -> text
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState(null);
+  const pendingSavesRef = useRef({}); // question_id -> { text, timer }
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +30,30 @@ export default function ReflectTab({ dayId }) {
     })();
     return () => { cancelled = true; };
   }, [dayId]);
+
+  // 페이지를 벗어날 때(뒤로 가기, 일차 목록으로, 앱 종료 등) 아직 저장 안 된
+  // 입력값이 남아있으면 즉시(디바운스 없이) 저장을 시도해서 잃어버리지 않게 함.
+  useEffect(() => {
+    return () => {
+      Object.entries(pendingSavesRef.current).forEach(([questionId, entry]) => {
+        clearTimeout(entry.timer);
+        saveReflectionAnswer(questionId, entry.text).catch(() => {});
+      });
+      pendingSavesRef.current = {};
+    };
+  }, []);
+
+  function handleAnswerChange(questionId, text) {
+    setAnswers((prev) => ({ ...prev, [questionId]: text }));
+
+    const existing = pendingSavesRef.current[questionId];
+    if (existing) clearTimeout(existing.timer);
+    const timer = setTimeout(() => {
+      saveReflectionAnswer(questionId, text).catch(() => {});
+      delete pendingSavesRef.current[questionId];
+    }, AUTOSAVE_DELAY);
+    pendingSavesRef.current[questionId] = { text, timer };
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -51,7 +78,7 @@ export default function ReflectTab({ dayId }) {
     <div className="card">
       <h2>성찰하기</h2>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        선생님이 만든 성찰 문항에 답해보세요.
+        선생님이 만든 성찰 문항에 답해보세요. 입력한 내용은 자동으로 저장되니, 잠깐 나갔다 와도 이어서 쓸 수 있어요.
       </p>
       <form onSubmit={handleSubmit}>
         {questions.length === 0 && (
@@ -63,7 +90,7 @@ export default function ReflectTab({ dayId }) {
             {q.activity_sheet_url && <img src={q.activity_sheet_url} alt="" className="content-image" style={{ marginBottom: 8 }} />}
             <textarea
               value={answers[q.id] || ''}
-              onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+              onChange={(e) => handleAnswerChange(q.id, e.target.value)}
             />
           </div>
         ))}

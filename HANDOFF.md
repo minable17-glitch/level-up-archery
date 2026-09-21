@@ -85,9 +85,9 @@ src/
     MyRecordsTab.jsx             "내 기록" 탭: classId의 모든 일차를 나열하며 각 일차의 슈팅 기록 요약과 성찰 문항+내 답변을 함께 보여줌 (읽기 전용, 새 API 없이 기존 per-day 엔드포인트를 일차 수만큼 병렬 호출)
     ReadTab.jsx / LearnTab.jsx    dayId prop 기준으로 콘텐츠 조회 (이전엔 classId 기준)
     TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어), MAX_MARKERS=50. 마커는 pointer-events:none이라 탭해도 지워지지 않음 — 삭제는 RecordTab의 "마지막 취소"/"전체 지우기" 버튼으로만 가능. 명중(빨강·금색, HIT_RADIUS 이내)은 초록 ●, 그 외(과녁엔 맞았지만 비명중)는 흐린 ✕로 표시
-    RecordTab.jsx                 기록하기 화면 본체 (dayId prop, 활 번호를 이 화면에서 직접 입력, 장비 등록 개념 없음, 명중 마커 + "빗나간 화살 수" 스테퍼로 총 발수/명중 집계, 탄착군 기반 조준/자세 피드백(aimFeedback.js) 표시, 일차당 1건 업서트)
+    RecordTab.jsx                 기록하기 화면 본체 (dayId prop, 활 번호를 이 화면에서 직접 입력, 장비 등록 개념 없음, 명중 마커 + "빗나간 화살 수" 스테퍼로 총 발수/명중 집계, 탄착군 기반 조준/자세 피드백(aimFeedback.js) 표시, 일차당 1건 업서트). 변경사항이 있으면 800ms 디바운스로 자동 저장하고, 컴포넌트가 언마운트될 때(STEP 전환·일차 목록으로 나가기 등) 저장 대기 중이던 값을 즉시 flush함
     BoxBreathing.jsx              박스 호흡(4-4-4-4) 타이머 위젯
-    ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트)
+    ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트). RecordTab과 같은 방식으로 문항별 답변을 800ms 디바운스 자동 저장 + 언마운트 시 즉시 flush
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
     AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사)
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
@@ -146,6 +146,7 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - **사진 증빙/AI 자동인식**: 이번 구현에는 포함하지 않았다. 필요해지면 러닝 앱 인수인계서 §6-6(구글 드라이브 업로드), §6-7(AI는 항상 선택지)의 패턴을 참고할 것.
 - **관리자 학생 삭제/PIN 초기화**: 명세서에 명시되지 않아 이번 버전에는 없다. 필요하면 새싹책방의 `teacher_delete_student`, `teacher_reset_student_pin` RPC 패턴을 그대로 가져오면 된다.
 - **진짜 이메일 발송**: 위 §6 참고 — 아이디/비밀번호 찾기가 지금은 이메일을 안 보내고 화면에 바로 보여주는 방식이다.
+- **자동 저장의 한계**: RecordTab/ReflectTab은 변경 후 800ms 디바운스로 서버에 자동 저장하고, 앱 안에서 다른 화면으로 이동(STEP 전환, 일차 목록으로 나가기)할 때는 대기 중인 저장을 즉시 flush한다. 다만 브라우저 탭을 강제로 닫거나 기기 전원이 꺼지는 등 JS 실행이 즉시 중단되는 경우엔 flush가 실행되지 않으므로, 아주 드물게 "마지막 변경 후 800ms 이내"의 아주 짧은 구간만 유실될 수 있다(그 이전 변경은 이미 저장돼 있음). `navigator.sendBeacon`은 Supabase 인증 헤더를 실어보낼 수 없어 쓸 수 없었다.
 
 ## 8. 스모크 테스트 이력
 

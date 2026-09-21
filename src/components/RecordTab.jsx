@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TargetFace, { MAX_MARKERS } from './TargetFace';
 import { HIT_RADIUS, computeAimFeedback } from '../lib/aimFeedback';
 import { getMyShootingLog, getMyShootingHistory, saveShootingLog } from '../lib/api';
+
+const AUTOSAVE_DELAY = 800;
 
 function countHits(markers) {
   return markers.filter((m) => Math.hypot(m.x, m.y) <= HIT_RADIUS).length;
@@ -15,6 +17,8 @@ export default function RecordTab({ dayId }) {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const autosaveTimerRef = useRef(null);
+  const pendingPayloadRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +41,36 @@ export default function RecordTab({ dayId }) {
     return () => { cancelled = true; };
   }, [dayId]);
 
+  const hitCount = countHits(markers);
+  const totalShots = markers.length + missCount;
+  const feedback = computeAimFeedback(markers);
+
+  // 활 번호/마커/빗나간 화살 수가 바뀔 때마다 자동 저장을 예약해서, 학생이
+  // 명시적으로 저장 버튼을 누르지 않고 나가도 지금까지 한 기록은 남게 함.
+  useEffect(() => {
+    if (loading) return;
+    if (!bowNumber.trim() && markers.length === 0 && missCount === 0) return;
+    const payload = { dayId, bowNumber: bowNumber.trim(), markers, hitCount, missCount };
+    pendingPayloadRef.current = payload;
+    clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      saveShootingLog(payload).catch(() => {});
+      pendingPayloadRef.current = null;
+    }, AUTOSAVE_DELAY);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bowNumber, markers, missCount, loading]);
+
+  // 페이지를 벗어날 때 아직 저장 안 된 변경사항이 남아있으면 즉시 저장.
+  useEffect(() => {
+    return () => {
+      clearTimeout(autosaveTimerRef.current);
+      if (pendingPayloadRef.current) {
+        saveShootingLog(pendingPayloadRef.current).catch(() => {});
+        pendingPayloadRef.current = null;
+      }
+    };
+  }, []);
+
   function addMarker(m) {
     setMarkers((prev) => [...prev, m]);
     setResult(null);
@@ -48,10 +82,6 @@ export default function RecordTab({ dayId }) {
     setMarkers([]);
   }
 
-  const hitCount = countHits(markers);
-  const totalShots = markers.length + missCount;
-  const feedback = computeAimFeedback(markers);
-
   async function handleSave() {
     if (!bowNumber.trim()) {
       setResult({ ok: false, error: '활 번호를 입력해주세요.' });
@@ -60,6 +90,8 @@ export default function RecordTab({ dayId }) {
     setPending(true);
     setResult(null);
     try {
+      clearTimeout(autosaveTimerRef.current);
+      pendingPayloadRef.current = null;
       await saveShootingLog({
         dayId,
         bowNumber: bowNumber.trim(),
@@ -90,6 +122,7 @@ export default function RecordTab({ dayId }) {
       <div className="card">
         <p className="muted center" style={{ marginTop: 0, fontSize: 13 }}>
           화살이 맞은 자리를 과녁 위에 탭하세요. (최대 {MAX_MARKERS}발) 빨강·금색 안쪽만 명중으로 기록돼요.
+          기록은 자동으로 저장되니, 잠깐 나갔다 와도 이어서 할 수 있어요.
         </p>
         <TargetFace markers={markers} onAddMarker={addMarker} suggestedAimPoint={feedback.suggestedAimPoint} />
         <div className="hit-count">
