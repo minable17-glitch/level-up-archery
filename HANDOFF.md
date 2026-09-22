@@ -77,6 +77,9 @@ src/
     media.js                   유튜브 URL → embed 변환, 쉼표구분 URL 파싱
     upload.js                  Supabase Storage(`content-uploads` 버킷)로 이미지/영상 파일 업로드 후 공개 URL 반환
     aimFeedback.js              명중 판정 반지름(HIT_RADIUS)과 탄착군 기반 조준/자세 피드백 로직 (순수 함수, 아래 §5 참고)
+    offlineCache.js              cachedFetch(key, fetchFn) — 목록성 조회(일차 목록/읽어보기·배워보기 자료/성찰 문항) 결과를 localStorage에 남겨뒀다가, 네트워크 요청이 실패하면(오프라인) 그 캐시로 대체
+    offlineQueue.js               markPending/attemptSync/flushAll/startAutoFlush — 기록하기·성찰하기 저장을 항상 먼저 localStorage 큐에 남기고 서버 저장을 시도, 실패(오프라인)하면 큐에 남겨뒀다가 'online' 이벤트·주기적 재시도로 자동 재전송
+    useOnlineStatus.js            navigator.onLine + online/offline 이벤트를 구독하는 훅. RecordTab/ReflectTab의 오프라인 배너에 사용
   components/
     RoleGate.jsx                 첫 화면 역할 선택(학생/선생님)
     StudentLoginGate.jsx
@@ -146,7 +149,9 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - **사진 증빙/AI 자동인식**: 이번 구현에는 포함하지 않았다. 필요해지면 러닝 앱 인수인계서 §6-6(구글 드라이브 업로드), §6-7(AI는 항상 선택지)의 패턴을 참고할 것.
 - **관리자 학생 삭제/PIN 초기화**: 명세서에 명시되지 않아 이번 버전에는 없다. 필요하면 새싹책방의 `teacher_delete_student`, `teacher_reset_student_pin` RPC 패턴을 그대로 가져오면 된다.
 - **진짜 이메일 발송**: 위 §6 참고 — 아이디/비밀번호 찾기가 지금은 이메일을 안 보내고 화면에 바로 보여주는 방식이다.
-- **자동 저장의 한계**: RecordTab/ReflectTab은 변경 후 800ms 디바운스로 서버에 자동 저장하고, 앱 안에서 다른 화면으로 이동(STEP 전환, 일차 목록으로 나가기)할 때는 대기 중인 저장을 즉시 flush한다. 다만 브라우저 탭을 강제로 닫거나 기기 전원이 꺼지는 등 JS 실행이 즉시 중단되는 경우엔 flush가 실행되지 않으므로, 아주 드물게 "마지막 변경 후 800ms 이내"의 아주 짧은 구간만 유실될 수 있다(그 이전 변경은 이미 저장돼 있음). `navigator.sendBeacon`은 Supabase 인증 헤더를 실어보낼 수 없어 쓸 수 없었다.
+- **자동 저장 + 오프라인 지원 (RecordTab/ReflectTab)**: 변경이 생기면 항상 먼저 `offlineQueue.markPending()`으로 localStorage에 즉시 기록해두고(오프라인이어도 안전), 800ms 디바운스 뒤 서버 저장을 시도한다(`attemptSync`). 서버 저장이 성공하면 큐에서 지우고, 실패(오프라인 등)하면 큐에 남겨둔 채로 `window`의 `online` 이벤트나 8초 주기 재시도에서 자동으로 다시 시도한다(`startAutoFlush`, App.jsx에서 앱 시작 시 1회 등록). 화면을 나갈 때(STEP 전환, 일차 목록으로 나가기 등 컴포넌트 언마운트)도 대기 중인 저장을 즉시 한 번 더 시도한다. 화면에 다시 들어오면(같은 화면 재마운트든, 완전히 새로고침이든) localStorage에 아직 서버로 못 보낸 값이 있으면 서버 값보다 그걸 우선해서 보여준다 — 오프라인 중에 쓴 내용이 그대로 이어진다.
+  - 성찰 문항 목록(`listReflectionQuestions`)·읽어보기/배워보기 자료(`listReadContents`/`listLearnContents`)·일차 목록(`listDays`)은 `offlineCache.cachedFetch()`로 감싸 마지막으로 성공한 응답을 localStorage에 캐싱해둔다. 오프라인이라 이 조회들이 실패하면 캐시를 대신 보여줘서, 한 번이라도 열어본 화면은 오프라인에서도 계속 이어서 쓸 수 있다. (처음부터 한 번도 안 연결된 상태로 새 일차에 처음 들어가는 경우는 지원 대상이 아님 — 그 일차의 문항/자료를 아직 받아온 적이 없어서.)
+  - 브라우저 탭을 강제로 닫거나 기기 전원이 꺼지는 등 JS 실행이 즉시 중단되는 극단적인 경우엔 마지막 변경 후 800ms 이내의 아주 짧은 구간만 로컬 큐에 남고 화면에 반영은 안 됐을 수 있지만, 다음에 그 기기로 다시 열면 큐에 남아있던 값이 그대로 이어진다. `navigator.sendBeacon`은 Supabase 인증 헤더를 실어보낼 수 없어 쓰지 않았다.
 
 ## 8. 스모크 테스트 이력
 

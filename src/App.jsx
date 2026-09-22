@@ -7,6 +7,10 @@ import MyRecordsTab from './components/MyRecordsTab';
 import AdminTab from './components/AdminTab';
 import { getSession, clearSession } from './lib/session';
 import { logout as apiLogout } from './lib/api';
+import { startAutoFlush } from './lib/offlineQueue';
+
+// 오프라인 중에 쓴 기록/성찰 답변을 인터넷이 연결되면 자동으로 재전송.
+startAutoFlush();
 
 const TABS = [
   { key: 'days', label: '일차', icon: '🎯' },

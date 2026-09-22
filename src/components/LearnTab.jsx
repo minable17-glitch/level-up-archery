@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listLearnContents } from '../lib/api';
+import { cachedFetch } from '../lib/offlineCache';
 import { splitUrls, toYoutubeEmbedUrl } from '../lib/media';
 import BoxBreathing from './BoxBreathing';
 
@@ -14,7 +15,7 @@ export default function LearnTab({ dayId }) {
     let cancelled = false;
     (async () => {
       try {
-        const rows = await listLearnContents(dayId);
+        const rows = await cachedFetch(`learn:${dayId}`, () => listLearnContents(dayId));
         if (!cancelled) setContents(rows);
       } catch (err) {
         if (!cancelled) setError(err.message || '목록을 불러오지 못했어요.');

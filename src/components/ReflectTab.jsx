@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { saveReflection, listReflectionQuestions, getMyReflectionAnswers, saveReflectionAnswer } from '../lib/api';
+import { cachedFetch } from '../lib/offlineCache';
+import { markPending, getPendingPayload, attemptSync } from '../lib/offlineQueue';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 
 const AUTOSAVE_DELAY = 800;
 
 export default function ReflectTab({ dayId }) {
+  const online = useOnlineStatus();
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({}); // question_id -> text
@@ -16,14 +20,20 @@ export default function ReflectTab({ dayId }) {
     (async () => {
       try {
         const [qs, myAnswers] = await Promise.all([
-          listReflectionQuestions(dayId),
+          cachedFetch(`reflectq:${dayId}`, () => listReflectionQuestions(dayId)),
           getMyReflectionAnswers(dayId).catch(() => []),
         ]);
         if (cancelled) return;
         setQuestions(qs);
-        setAnswers(Object.fromEntries(myAnswers.map((a) => [a.question_id, a.answer_text || ''])));
+        const merged = Object.fromEntries(myAnswers.map((a) => [a.question_id, a.answer_text || '']));
+        // 오프라인 중에 써두고 아직 서버에 반영 안 된 답변이 있으면 그걸 우선함.
+        for (const q of qs) {
+          const draft = getPendingPayload(`reflect:${dayId}:${q.id}`);
+          if (draft) merged[q.id] = draft.answerText;
+        }
+        setAnswers(merged);
       } catch {
-        /* 문항을 못 불러와도 화면은 계속 보여줌 */
+        /* 문항을 못 불러와도(오프라인 포함) 화면은 계속 보여줌 */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -31,25 +41,31 @@ export default function ReflectTab({ dayId }) {
     return () => { cancelled = true; };
   }, [dayId]);
 
-  // 페이지를 벗어날 때(뒤로 가기, 일차 목록으로, 앱 종료 등) 아직 저장 안 된
-  // 입력값이 남아있으면 즉시(디바운스 없이) 저장을 시도해서 잃어버리지 않게 함.
+  // 페이지를 벗어날 때(뒤로 가기, 일차 목록으로, 앱 종료 등) 아직 서버에
+  // 반영 안 된 입력값이 남아있으면 즉시(디바운스 없이) 저장을 시도.
   useEffect(() => {
     return () => {
       Object.entries(pendingSavesRef.current).forEach(([questionId, entry]) => {
         clearTimeout(entry.timer);
-        saveReflectionAnswer(questionId, entry.text).catch(() => {});
+        const key = `reflect:${dayId}:${questionId}`;
+        void attemptSync(key, { questionId, answerText: entry.text });
       });
       pendingSavesRef.current = {};
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleAnswerChange(questionId, text) {
     setAnswers((prev) => ({ ...prev, [questionId]: text }));
 
+    const key = `reflect:${dayId}:${questionId}`;
+    const payload = { questionId, answerText: text };
+    markPending(key, payload); // 로컬에 즉시 기록(오프라인이어도 안전)
+
     const existing = pendingSavesRef.current[questionId];
     if (existing) clearTimeout(existing.timer);
     const timer = setTimeout(() => {
-      saveReflectionAnswer(questionId, text).catch(() => {});
+      void attemptSync(key, payload);
       delete pendingSavesRef.current[questionId];
     }, AUTOSAVE_DELAY);
     pendingSavesRef.current[questionId] = { text, timer };
@@ -66,7 +82,7 @@ export default function ReflectTab({ dayId }) {
       );
       setResult({ ok: true });
     } catch (err) {
-      setResult({ ok: false, error: err.message || '저장에 실패했어요.' });
+      setResult({ ok: false, error: err.message || '저장에 실패했어요. 인터넷 연결을 확인해주세요 — 입력한 내용은 기기에 남아있어서 연결되면 자동으로 저장돼요.' });
     } finally {
       setPending(false);
     }
@@ -75,32 +91,39 @@ export default function ReflectTab({ dayId }) {
   if (loading) return <div className="card center muted">불러오는 중...</div>;
 
   return (
-    <div className="card">
-      <h2>성찰하기</h2>
-      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        선생님이 만든 성찰 문항에 답해보세요. 입력한 내용은 자동으로 저장되니, 잠깐 나갔다 와도 이어서 쓸 수 있어요.
-      </p>
-      <form onSubmit={handleSubmit}>
-        {questions.length === 0 && (
-          <p className="muted" style={{ fontSize: 13 }}>선생님이 아직 성찰 문항을 등록하지 않았어요.</p>
-        )}
-        {questions.map((q, i) => (
-          <div className="field" key={q.id}>
-            <label>{i + 1}. {q.question_text}</label>
-            {q.activity_sheet_url && <img src={q.activity_sheet_url} alt="" className="content-image" style={{ marginBottom: 8 }} />}
-            <textarea
-              value={answers[q.id] || ''}
-              onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-            />
-          </div>
-        ))}
+    <div>
+      {!online && (
+        <div className="card msg" style={{ background: '#fdf1e0', color: '#8a5b00' }}>
+          📴 지금 오프라인 상태예요. 계속 써도 괜찮아요 — 인터넷에 연결되면 자동으로 저장돼요.
+        </div>
+      )}
+      <div className="card">
+        <h2>성찰하기</h2>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+          선생님이 만든 성찰 문항에 답해보세요. 입력한 내용은 자동으로 저장되니, 잠깐 나갔다 와도(오프라인이어도) 이어서 쓸 수 있어요.
+        </p>
+        <form onSubmit={handleSubmit}>
+          {questions.length === 0 && (
+            <p className="muted" style={{ fontSize: 13 }}>선생님이 아직 성찰 문항을 등록하지 않았어요.</p>
+          )}
+          {questions.map((q, i) => (
+            <div className="field" key={q.id}>
+              <label>{i + 1}. {q.question_text}</label>
+              {q.activity_sheet_url && <img src={q.activity_sheet_url} alt="" className="content-image" style={{ marginBottom: 8 }} />}
+              <textarea
+                value={answers[q.id] || ''}
+                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+              />
+            </div>
+          ))}
 
-        {result && !result.ok && <div className="msg msg-error">{result.error}</div>}
-        {result && result.ok && <div className="msg msg-ok">이 일차의 성찰을 저장했어요.</div>}
-        <button className="btn btn-primary btn-block" type="submit" disabled={pending} style={{ marginTop: 4 }}>
-          {pending ? '저장 중...' : '이 일차 성찰 저장'}
-        </button>
-      </form>
+          {result && !result.ok && <div className="msg msg-error">{result.error}</div>}
+          {result && result.ok && <div className="msg msg-ok">이 일차의 성찰을 저장했어요.</div>}
+          <button className="btn btn-primary btn-block" type="submit" disabled={pending} style={{ marginTop: 4 }}>
+            {pending ? '저장 중...' : '이 일차 성찰 저장'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

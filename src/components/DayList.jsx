@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listDays } from '../lib/api';
+import { cachedFetch } from '../lib/offlineCache';
 
 export default function DayList({ classId, onSelectDay }) {
   const [days, setDays] = useState([]);
@@ -10,7 +11,7 @@ export default function DayList({ classId, onSelectDay }) {
     let cancelled = false;
     (async () => {
       try {
-        const rows = await listDays(classId);
+        const rows = await cachedFetch(`days:${classId}`, () => listDays(classId));
         if (!cancelled) setDays(rows);
       } catch (err) {
         if (!cancelled) setError(err.message || '일차 목록을 불러오지 못했어요.');

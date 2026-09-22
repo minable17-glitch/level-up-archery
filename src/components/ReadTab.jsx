@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listReadContents } from '../lib/api';
+import { cachedFetch } from '../lib/offlineCache';
 import { splitUrls } from '../lib/media';
 
 export default function ReadTab({ dayId }) {
@@ -12,7 +13,7 @@ export default function ReadTab({ dayId }) {
     let cancelled = false;
     (async () => {
       try {
-        const rows = await listReadContents(dayId);
+        const rows = await cachedFetch(`read:${dayId}`, () => listReadContents(dayId));
         if (!cancelled) setContents(rows);
       } catch (err) {
         if (!cancelled) setError(err.message || '목록을 불러오지 못했어요.');
