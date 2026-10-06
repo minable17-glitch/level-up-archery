@@ -12,6 +12,7 @@ const STEPS = [
 function DayEditForm({ classId, day, onDone, onCancel }) {
   const [title, setTitle] = useState(day.title);
   const [orderIndex, setOrderIndex] = useState(day.order_index ?? 0);
+  const [gemUrl, setGemUrl] = useState(day.gem_url || '');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,7 +21,7 @@ function DayEditForm({ classId, day, onDone, onCancel }) {
     setPending(true);
     setError('');
     try {
-      await adminUpdateDay(classId, day.id, title.trim(), Number(orderIndex));
+      await adminUpdateDay(classId, day.id, title.trim(), Number(orderIndex), gemUrl.trim());
       onDone();
     } catch (err) {
       setError(err.message || '수정에 실패했어요.');
@@ -33,6 +34,13 @@ function DayEditForm({ classId, day, onDone, onCancel }) {
     <form onSubmit={handleSave} className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1, minWidth: 120 }} />
       <input type="number" value={orderIndex} onChange={(e) => setOrderIndex(e.target.value)} style={{ width: 64 }} />
+      <input
+        type="url"
+        value={gemUrl}
+        onChange={(e) => setGemUrl(e.target.value)}
+        placeholder="이 일차용 구글 Gem 링크 (선택, 배워보기에 버튼으로 표시돼요)"
+        style={{ flex: '1 1 100%', minWidth: 200 }}
+      />
       <button className="btn btn-primary" type="submit" disabled={pending}>저장</button>
       <button className="btn btn-outline" type="button" onClick={onCancel}>취소</button>
       {error && <span className="msg msg-error" style={{ width: '100%' }}>{error}</span>}

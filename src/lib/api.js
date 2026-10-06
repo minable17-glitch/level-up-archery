@@ -89,22 +89,24 @@ export async function listDays(classId) {
   return data || [];
 }
 
-export async function adminCreateDay(classId, title, orderIndex = 0) {
+export async function adminCreateDay(classId, title, orderIndex = 0, gemUrl = null) {
   const { data, error } = await supabase.rpc('admin_create_day', {
     p_class_id: classId,
     p_title: title,
     p_order_index: orderIndex,
+    p_gem_url: gemUrl,
   });
   if (error) throw error;
   return data;
 }
 
-export async function adminUpdateDay(classId, id, title, orderIndex) {
+export async function adminUpdateDay(classId, id, title, orderIndex, gemUrl = null) {
   const { error } = await supabase.rpc('admin_update_day', {
     p_class_id: classId,
     p_id: id,
     p_title: title,
     p_order_index: orderIndex,
+    p_gem_url: gemUrl,
   });
   if (error) throw error;
 }

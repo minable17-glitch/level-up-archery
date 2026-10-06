@@ -31,7 +31,7 @@ export default function DayView({ day, onBack }) {
       </div>
 
       {step === 'read' && <ReadTab key={day.id} dayId={day.id} />}
-      {step === 'learn' && <LearnTab key={day.id} dayId={day.id} />}
+      {step === 'learn' && <LearnTab key={day.id} dayId={day.id} gemUrl={day.gem_url} />}
       {step === 'record' && <RecordTab key={day.id} dayId={day.id} />}
       {step === 'reflect' && <ReflectTab key={day.id} dayId={day.id} />}
     </div>

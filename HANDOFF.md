@@ -92,7 +92,7 @@ src/
     BoxBreathing.jsx              박스 호흡(4-4-4-4) 타이머 위젯
     ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트). RecordTab과 같은 방식으로 문항별 답변을 800ms 디바운스 자동 저장 + 언마운트 시 즉시 flush
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
-    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사)
+    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사). 일차 수정 폼에 구글 Gem 링크 입력란(선택) — 아래 참고
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
     AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
     AdminRecords.jsx              🏆 명중 랭킹(TOP 20, 학급 내 모든 일차 명중 발수 합산, 새 RPC 없이 이미 불러온 슈팅 기록을 클라이언트에서 집계) + 학급 전체 슈팅기록/성찰기록 요약 표 + 학생 명단(이름 클릭 시 AdminStudentDetail로 드릴다운)
@@ -152,6 +152,7 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - **자동 저장 + 오프라인 지원 (RecordTab/ReflectTab)**: 변경이 생기면 항상 먼저 `offlineQueue.markPending()`으로 localStorage에 즉시 기록해두고(오프라인이어도 안전), 800ms 디바운스 뒤 서버 저장을 시도한다(`attemptSync`). 서버 저장이 성공하면 큐에서 지우고, 실패(오프라인 등)하면 큐에 남겨둔 채로 `window`의 `online` 이벤트나 8초 주기 재시도에서 자동으로 다시 시도한다(`startAutoFlush`, App.jsx에서 앱 시작 시 1회 등록). 화면을 나갈 때(STEP 전환, 일차 목록으로 나가기 등 컴포넌트 언마운트)도 대기 중인 저장을 즉시 한 번 더 시도한다. 화면에 다시 들어오면(같은 화면 재마운트든, 완전히 새로고침이든) localStorage에 아직 서버로 못 보낸 값이 있으면 서버 값보다 그걸 우선해서 보여준다 — 오프라인 중에 쓴 내용이 그대로 이어진다.
   - 성찰 문항 목록(`listReflectionQuestions`)·읽어보기/배워보기 자료(`listReadContents`/`listLearnContents`)·일차 목록(`listDays`)은 `offlineCache.cachedFetch()`로 감싸 마지막으로 성공한 응답을 localStorage에 캐싱해둔다. 오프라인이라 이 조회들이 실패하면 캐시를 대신 보여줘서, 한 번이라도 열어본 화면은 오프라인에서도 계속 이어서 쓸 수 있다. (처음부터 한 번도 안 연결된 상태로 새 일차에 처음 들어가는 경우는 지원 대상이 아님 — 그 일차의 문항/자료를 아직 받아온 적이 없어서.)
   - 브라우저 탭을 강제로 닫거나 기기 전원이 꺼지는 등 JS 실행이 즉시 중단되는 극단적인 경우엔 마지막 변경 후 800ms 이내의 아주 짧은 구간만 로컬 큐에 남고 화면에 반영은 안 됐을 수 있지만, 다음에 그 기기로 다시 열면 큐에 남아있던 값이 그대로 이어진다. `navigator.sendBeacon`은 Supabase 인증 헤더를 실어보낼 수 없어 쓰지 않았다.
+- **일차별 구글 Gem 링크 (배워보기)**: `days` 테이블에 `gem_url text` (nullable) 컬럼을 추가했다. 교사가 일차 관리 → 해당 일차 "수정"에서 입력/수정하면(`admin_update_day`에 `p_gem_url` 파라미터 추가, `admin_create_day`도 동일) 학생 화면의 STEP 2 배워보기 상단에 "✨ AI 코치와 대화하기" 버튼이 새 탭으로 뜬다(`LearnTab`이 `gemUrl` prop을 받아 비어있으면 버튼 자체를 숨김). `admin_copy_day`로 다른 반에 일차를 복사할 때도 Gem 링크가 함께 복사된다. Gem 링크 자체는 임베드되는 게 아니라 Gemini 앱으로 새 탭 이동하는 외부 링크일 뿐이다(Gem은 API/임베드를 공식 지원하지 않음).
 
 ## 8. 스모크 테스트 이력
 

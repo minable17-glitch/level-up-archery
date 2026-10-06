@@ -79,6 +79,7 @@ create table if not exists days (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_days_class on days(class_id, order_index);
+alter table days add column if not exists gem_url text;
 
 -- ── 일차별 콘텐츠 ────────────────────────────────────────
 
@@ -409,7 +410,8 @@ begin
 end;
 $$;
 
-create or replace function admin_create_day(p_class_id uuid, p_title text, p_order_index int default 0)
+drop function if exists admin_create_day(uuid, text, int);
+create or replace function admin_create_day(p_class_id uuid, p_title text, p_order_index int default 0, p_gem_url text default null)
 returns days
 language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -419,24 +421,25 @@ begin
   if coalesce(trim(p_title), '') = '' then
     raise exception '일차 제목을 입력해주세요';
   end if;
-  insert into days (class_id, title, order_index)
-  values (p_class_id, trim(p_title), coalesce(p_order_index, 0))
+  insert into days (class_id, title, order_index, gem_url)
+  values (p_class_id, trim(p_title), coalesce(p_order_index, 0), nullif(trim(p_gem_url), ''))
   returning * into v_row;
   return v_row;
 end;
 $$;
-grant execute on function admin_create_day(uuid, text, int) to anon, authenticated;
+grant execute on function admin_create_day(uuid, text, int, text) to anon, authenticated;
 
-create or replace function admin_update_day(p_class_id uuid, p_id uuid, p_title text, p_order_index int)
+drop function if exists admin_update_day(uuid, uuid, text, int);
+create or replace function admin_update_day(p_class_id uuid, p_id uuid, p_title text, p_order_index int, p_gem_url text default null)
 returns void
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform assert_class_owner(p_class_id);
-  update days set title = p_title, order_index = coalesce(p_order_index, 0)
+  update days set title = p_title, order_index = coalesce(p_order_index, 0), gem_url = nullif(trim(p_gem_url), '')
   where days.id = p_id and days.class_id = p_class_id;
 end;
 $$;
-grant execute on function admin_update_day(uuid, uuid, text, int) to anon, authenticated;
+grant execute on function admin_update_day(uuid, uuid, text, int, text) to anon, authenticated;
 
 create or replace function admin_delete_day(p_class_id uuid, p_id uuid)
 returns void
@@ -1040,8 +1043,8 @@ begin
   select coalesce(max(order_index) + 1, 0) into v_next_order
   from days where days.class_id = p_target_class_id;
 
-  insert into days (class_id, title, order_index)
-  values (p_target_class_id, coalesce(nullif(trim(p_title), ''), v_source.title), v_next_order)
+  insert into days (class_id, title, order_index, gem_url)
+  values (p_target_class_id, coalesce(nullif(trim(p_title), ''), v_source.title), v_next_order, v_source.gem_url)
   returning * into v_new;
 
   insert into read_contents (day_id, title, category, image_urls, order_index, visible)

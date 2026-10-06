@@ -4,7 +4,7 @@ import { cachedFetch } from '../lib/offlineCache';
 import { splitUrls, toYoutubeEmbedUrl } from '../lib/media';
 import BoxBreathing from './BoxBreathing';
 
-export default function LearnTab({ dayId }) {
+export default function LearnTab({ dayId, gemUrl }) {
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,6 +78,17 @@ export default function LearnTab({ dayId }) {
         <button className="btn btn-accent btn-block" type="button" onClick={() => setShowBreathing(true)}>
           🫁 박스 호흡 연습하기
         </button>
+        {gemUrl && (
+          <a
+            className="btn btn-outline btn-block"
+            href={gemUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginTop: 8, textAlign: 'center', display: 'block' }}
+          >
+            ✨ AI 코치와 대화하기
+          </a>
+        )}
       </div>
       {loading && <div className="card center muted">불러오는 중...</div>}
       {error && <div className="card msg msg-error">{error}</div>}
