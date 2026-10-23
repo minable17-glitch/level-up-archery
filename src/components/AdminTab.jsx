@@ -4,6 +4,8 @@ import {
   createClass, getMyClasses, adminUpdateClassCode, logout as apiLogout,
 } from '../lib/api';
 import { getTeacherSession, setTeacherSession, clearTeacherSession } from '../lib/session';
+
+const REMEMBERED_USERNAME_KEY = 'archery_remembered_teacher_username';
 import AdminDayManager from './AdminDayManager';
 import AdminRecords from './AdminRecords';
 
@@ -14,13 +16,14 @@ const SUB_TABS = [
 
 function AuthScreen({ onLoggedIn, onExit }) {
   const [view, setView] = useState('login'); // login | signup | find-username | reset-password
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => localStorage.getItem(REMEMBERED_USERNAME_KEY) || '');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [rememberId, setRememberId] = useState(() => !!localStorage.getItem(REMEMBERED_USERNAME_KEY));
 
   function resetFields() {
     setPassword('');
@@ -39,6 +42,11 @@ function AuthScreen({ onLoggedIn, onExit }) {
     setError('');
     try {
       const teacher = await teacherLogin({ username: username.trim(), password });
+      if (rememberId) {
+        localStorage.setItem(REMEMBERED_USERNAME_KEY, username.trim());
+      } else {
+        localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+      }
       setTeacherSession(teacher);
       onLoggedIn(teacher);
     } catch (err) {
@@ -115,12 +123,31 @@ function AuthScreen({ onLoggedIn, onExit }) {
             <form onSubmit={handleLogin}>
               <div className="field">
                 <label>아이디</label>
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
+                <input
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
               </div>
               <div className="field">
                 <label>비밀번호</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <input
+                  type="password"
+                  name="current-password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
+              <label className="checkbox-row" style={{ border: 'none', padding: '2px 0 10px' }}>
+                <input type="checkbox" checked={rememberId} onChange={(e) => setRememberId(e.target.checked)} />
+                아이디 저장
+              </label>
+              <p className="muted" style={{ fontSize: 12, marginTop: -4, marginBottom: 10 }}>
+                비밀번호는 이 앱에 저장하지 않아요. 로그인하면 브라우저가 "비밀번호를 저장할까요?"라고 물어볼 수 있어요 — 그때 저장하면 다음부터 자동으로 채워져요.
+              </p>
               {error && <div className="msg msg-error">{error}</div>}
               <button className="btn btn-accent btn-block" type="submit" disabled={pending}>
                 {pending ? '확인 중...' : '로그인'}
