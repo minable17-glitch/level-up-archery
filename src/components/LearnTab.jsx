@@ -3,6 +3,7 @@ import { listLearnContents } from '../lib/api';
 import { cachedFetch } from '../lib/offlineCache';
 import { splitUrls, toYoutubeEmbedUrl } from '../lib/media';
 import BoxBreathing from './BoxBreathing';
+import PostureCheck from './PostureCheck';
 
 export default function LearnTab({ dayId, gemUrl }) {
   const [contents, setContents] = useState([]);
@@ -10,6 +11,7 @@ export default function LearnTab({ dayId, gemUrl }) {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [showBreathing, setShowBreathing] = useState(false);
+  const [showPostureCheck, setShowPostureCheck] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +35,17 @@ export default function LearnTab({ dayId, gemUrl }) {
           ← 배워보기로
         </button>
         <BoxBreathing />
+      </div>
+    );
+  }
+
+  if (showPostureCheck) {
+    return (
+      <div>
+        <button className="btn btn-outline" onClick={() => setShowPostureCheck(false)} type="button" style={{ marginBottom: 10 }}>
+          ← 배워보기로
+        </button>
+        <PostureCheck />
       </div>
     );
   }
@@ -77,6 +90,9 @@ export default function LearnTab({ dayId, gemUrl }) {
         <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>영상과 이미지를 보며 실제로 따라 해보세요.</p>
         <button className="btn btn-accent btn-block" type="button" onClick={() => setShowBreathing(true)}>
           🫁 박스 호흡 연습하기
+        </button>
+        <button className="btn btn-accent btn-block" type="button" onClick={() => setShowPostureCheck(true)} style={{ marginTop: 8 }}>
+          📸 내 자세 평가해보기
         </button>
         {gemUrl && (
           <a
