@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listDays, getMyShootingHistory, listReflectionQuestions, getMyReflectionAnswers } from '../lib/api';
+import { ChevronIcon } from './icons';
 
 export default function MyRecordsTab({ classId }) {
   const [loading, setLoading] = useState(true);
@@ -46,12 +47,14 @@ export default function MyRecordsTab({ classId }) {
   if (loading) return <div className="card center muted">불러오는 중...</div>;
   if (error) return <div className="card msg msg-error">{error}</div>;
 
+  const lastDayId = days.length > 0 ? days[days.length - 1].id : null;
+
   return (
     <div>
       <div className="card">
         <h2>내 기록</h2>
         <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-          지금까지 진행한 일차별 기록과 내가 쓴 성찰 답변을 모아볼 수 있어요.
+          일차를 눌러서 그날의 기록과 성찰 답변을 펼쳐볼 수 있어요.
         </p>
       </div>
 
@@ -60,30 +63,44 @@ export default function MyRecordsTab({ classId }) {
       {days.map((day) => {
         const shot = shotByDay[day.id];
         const reflection = reflectionByDay[day.id] || { questions: [], answerByQuestion: {} };
-        return (
-          <div className="card" key={day.id}>
-            <h2>{day.title}</h2>
-            {shot ? (
-              <div className="tag" style={{ marginBottom: 10, display: 'inline-block' }}>
-                총 {shot.hit_count + (shot.miss_count || 0)}발 중 {shot.hit_count}발 명중
-              </div>
-            ) : (
-              <p className="muted" style={{ fontSize: 13 }}>아직 기록하기를 하지 않았어요.</p>
-            )}
+        const answeredCount = reflection.questions.filter((q) => (reflection.answerByQuestion[q.id] || '').trim()).length;
 
-            {reflection.questions.length === 0 ? (
-              <p className="muted" style={{ fontSize: 13 }}>이 일차엔 등록된 성찰 문항이 없어요.</p>
-            ) : (
-              reflection.questions.map((q, i) => (
-                <div key={q.id} style={{ marginTop: 8 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{i + 1}. {q.question_text}</div>
-                  <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>
-                    {reflection.answerByQuestion[q.id] || '(아직 답변하지 않았어요)'}
+        return (
+          <details key={day.id} className="journal-day" open={day.id === lastDayId}>
+            <summary>
+              <span className="journal-day-title">{day.title}</span>
+              <span className="journal-day-meta">
+                {shot && (
+                  <span className="tag">
+                    {shot.hit_count}/{shot.hit_count + (shot.miss_count || 0)}발
+                  </span>
+                )}
+                {reflection.questions.length > 0 && (
+                  <span className="tag">
+                    답변 {answeredCount}/{reflection.questions.length}
+                  </span>
+                )}
+              </span>
+              <ChevronIcon className="journal-day-chevron" />
+            </summary>
+
+            <div className="journal-day-body">
+              {!shot && <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>아직 기록하기를 하지 않았어요.</p>}
+
+              {reflection.questions.length === 0 ? (
+                <p className="muted" style={{ fontSize: 13, marginTop: shot ? 0 : undefined }}>이 일차엔 등록된 성찰 문항이 없어요.</p>
+              ) : (
+                reflection.questions.map((q, i) => (
+                  <div key={q.id} style={{ marginTop: i === 0 ? 0 : 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{i + 1}. {q.question_text}</div>
+                    <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>
+                      {reflection.answerByQuestion[q.id] || '(아직 답변하지 않았어요)'}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          </details>
         );
       })}
     </div>

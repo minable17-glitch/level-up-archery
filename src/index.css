@@ -332,6 +332,63 @@ button, input, textarea, select {
   flex: 1;
 }
 
+/* 내 기록("일지") — 일차마다 펼침/접힘. 파라런 앱의 "일차 드롭다운"(위아래로
+   너무 길어지는 걸 막으려고 교사 요청으로 도입)을 참고했다. */
+.journal-day {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.journal-day summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.journal-day summary::-webkit-details-marker {
+  display: none;
+}
+
+.journal-day-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-day-meta {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.journal-day-chevron {
+  color: var(--body-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.journal-day[open] .journal-day-chevron {
+  transform: rotate(90deg);
+}
+
+.journal-day-body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--surface-alt);
+  padding-top: 12px;
+  margin-top: -2px;
+}
+
 .content-card .meta .title {
   font-weight: 800;
   font-size: 15px;

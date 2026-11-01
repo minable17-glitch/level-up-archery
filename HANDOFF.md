@@ -85,7 +85,7 @@ src/
     StudentLoginGate.jsx
     DayList.jsx                  학생용 일차 목록 (classId → 일차 카드 리스트, 로그인 직후 바로 보임)
     DayView.jsx                  학생용 일차 상세: STEP1~4 pill 네비게이션 + Read/Learn/Record/ReflectTab을 dayId로 렌더
-    MyRecordsTab.jsx             "내 기록" 탭: classId의 모든 일차를 나열하며 각 일차의 슈팅 기록 요약과 성찰 문항+내 답변을 함께 보여줌 (읽기 전용, 새 API 없이 기존 per-day 엔드포인트를 일차 수만큼 병렬 호출)
+    MyRecordsTab.jsx             "내 기록" 탭: classId의 모든 일차를 `<details>`로 접어서 나열(일차가 많아지면 전부 펼쳐진 채로 한없이 길어지던 문제 — 아래 §10 참고). 기본은 제일 최근 일차만 펼쳐져 있고, 접힌 상태에서도 명중 발수·답변 완료 개수가 요약 태그로 보임. 펼치면 성찰 문항+내 답변 표시(읽기 전용, 새 API 없이 기존 per-day 엔드포인트를 일차 수만큼 병렬 호출)
     ReadTab.jsx / LearnTab.jsx    dayId prop 기준으로 콘텐츠 조회 (이전엔 classId 기준)
     TargetFace.jsx               과녁 SVG스러운 원형 탭 UI (실제로는 절대위치 div 레이어), MAX_MARKERS=50. 마커는 pointer-events:none이라 탭해도 지워지지 않음 — 삭제는 RecordTab의 "마지막 취소"/"전체 지우기" 버튼으로만 가능. 명중(빨강·금색, HIT_RADIUS 이내)은 초록 ●, 그 외(과녁엔 맞았지만 비명중)는 흐린 ✕로 표시
     RecordTab.jsx                 기록하기 화면 본체 (dayId prop, 활 번호를 이 화면에서 직접 입력, 장비 등록 개념 없음, 명중 마커 + "빗나간 화살 수" 스테퍼로 총 발수/명중 집계, 탄착군 기반 조준/자세 피드백(aimFeedback.js) 표시, 일차당 1건 업서트). 변경사항이 있으면 800ms 디바운스로 자동 저장하고, 컴포넌트가 언마운트될 때(STEP 전환·일차 목록으로 나가기 등) 저장 대기 중이던 값을 즉시 flush함
@@ -209,3 +209,8 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - `.pill`(STEP 네비게이션 등)도 흰 배경+테두리 → 옅은 회색 채움으로
 - 하단 탭(`.bottom-nav`)의 위쪽 테두리 선을 없애고 위로 뜨는 은은한 그림자로 교체
 - 결과적으로 로그인 폼·기록하기·성찰하기·관리자 학생기록 화면까지 전부 자동으로 "흰 카드가 크림색 배경 위에 둥실 떠 있고, 입력칸은 연한 회색 알약 모양" 톤으로 통일됨. Playwright로 로그인 폼/기록하기/성찰하기/관리자 랭킹 화면을 스크린샷 찍어서 눈으로 확인함.
+
+**3차 — 화면 레이아웃(정보 밀도) 효율화, 파라런 "일차 드롭다운" 패턴 참고.** 색/그림자 같은 스타일이 아니라 **구조** 쪽 참고 요청이라, 러닝 앱의 `HomeDayList.tsx`를 다시 읽었다. 거기엔 "2026-10-11 선생님 '위아래로 너무 길다 → 드롭다운으로'" 라는 코멘트와 함께, 성찰일지 일차 목록을 `<details>/<summary>`로 접어둔 코드가 있었다 — 일차가 쌓일수록 화면이 한없이 길어지는 문제를 그렇게 해결한 것.
+- 이 앱에서 똑같은 문제가 있는 화면은 `MyRecordsTab.jsx`("내 기록")였다 — 예전엔 일차마다 카드 하나씩, 그 안에 성찰 문항+내 답변이 전부 펼쳐진 채로 쌓여서, 학기가 지날수록(일차가 많아질수록) 스크롤이 끝없이 길어지는 구조였다. `DayList.jsx`(일차 탭, 목록을 눌러서 **들어가는** 용도)는 애초에 다른 문제라 그대로 뒀다 — 각 항목을 펼칠 이유가 없고 한 줄짜리라 길어져도 평범한 목록 스크롤이라 괜찮음.
+- `MyRecordsTab.jsx`를 일차마다 `<details className="journal-day">`로 바꿨다. 접힌 상태(summary)에선 일차 제목 + 요약 태그만 보인다(명중 "5/6발", 성찰 "답변 1/1"처럼 접힌 채로도 한눈에 상태를 알 수 있게 — 파라런 리포트 카드의 "✅ 제출 완료/✏️ 쓰는 중" 미리보기와 같은 생각). 기본으로는 **가장 최근 일차 하나만 펼쳐진 채** 시작하고(`days` 배열의 마지막 항목), 나머지는 접혀 있다가 눌러야 펼쳐진다. 여러 개를 동시에 펼쳐둘 수도 있다(네이티브 `<details>`라 서로 독립적).
+- CSS: `.journal-day`/`.journal-day summary`/`.journal-day-title`/`.journal-day-meta`/`.journal-day-chevron`/`.journal-day-body`를 `index.css`에 새로 추가. 기본 삼각형 마커는 `list-style:none` + `::-webkit-details-marker{display:none}`로 숨기고, 대신 `ChevronIcon`을 펼침 상태에 따라 90도 회전시킨다.
