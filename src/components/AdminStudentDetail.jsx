@@ -81,12 +81,19 @@ export default function AdminStudentDetail({ student, onBack }) {
 
   return (
     <div>
-      <button className="btn btn-outline" type="button" onClick={onBack} style={{ marginBottom: 12 }}>
-        ← 학생 목록
-      </button>
-
       <div className="card">
-        <h2>{student.student_number} {student.name}</h2>
+        <div className="row" style={{ alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <button
+            className="btn btn-outline"
+            type="button"
+            onClick={onBack}
+            aria-label="학생 목록으로"
+            style={{ padding: '9px 12px', flexShrink: 0 }}
+          >
+            ←
+          </button>
+          <h2 style={{ margin: 0 }}>{student.student_number} {student.name}</h2>
+        </div>
         <form onSubmit={handleResetPin} className="row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 160, marginBottom: 0 }}>
             <label>비밀번호(PIN) 재설정 (숫자 4자리)</label>

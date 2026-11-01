@@ -20,14 +20,20 @@ export default function DayPreview({ day, onBack }) {
 
   return (
     <div>
-      <button className="btn btn-outline" type="button" onClick={onBack} style={{ marginBottom: 10 }}>
-        ← 일차 관리로
-      </button>
-      <div className="card">
-        <h2>{day.title}</h2>
-        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-          학생이 보는 화면과 똑같아요. 직접 눌러보면서 확인해보세요.
-        </p>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+        <button
+          className="btn btn-outline"
+          type="button"
+          onClick={onBack}
+          aria-label="일차 관리로"
+          style={{ padding: '9px 12px', flexShrink: 0 }}
+        >
+          ←
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{day.title}</h2>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>학생이 보는 화면과 똑같아요.</p>
+        </div>
       </div>
       <div className="pill-row">
         {STEPS.map((s) => (

@@ -423,15 +423,23 @@ export default function AdminTab({ onExit }) {
         </div>
       </div>
       <div className="app-main">
-        <button className="btn btn-outline" type="button" onClick={() => setSelectedClass(null)} style={{ marginBottom: 12 }}>
-          ← 학급 목록
-        </button>
-        <div className="pill-row">
-          {SUB_TABS.map((t) => (
-            <button key={t.key} className={`pill ${subTab === t.key ? 'active' : ''}`} onClick={() => setSubTab(t.key)} type="button">
-              {t.label}
-            </button>
-          ))}
+        <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <button
+            className="btn btn-outline"
+            type="button"
+            onClick={() => setSelectedClass(null)}
+            aria-label="학급 목록으로"
+            style={{ padding: '9px 12px', flexShrink: 0 }}
+          >
+            ←
+          </button>
+          <div className="pill-row" style={{ marginBottom: 0, flex: 1 }}>
+            {SUB_TABS.map((t) => (
+              <button key={t.key} className={`pill ${subTab === t.key ? 'active' : ''}`} onClick={() => setSubTab(t.key)} type="button">
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {subTab === 'records' && <AdminRecords classId={selectedClass.id} />}

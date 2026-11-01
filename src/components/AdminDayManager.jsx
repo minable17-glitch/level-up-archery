@@ -164,13 +164,21 @@ export default function AdminDayManager({ classId }) {
   if (selectedDay) {
     return (
       <div>
-        <button className="btn btn-outline" type="button" onClick={() => setSelectedDay(null)} style={{ marginBottom: 12 }}>
-          ← 일차 목록
-        </button>
-        <div className="card">
-          <h2>{selectedDay.title}</h2>
-          <button className="btn btn-accent btn-block" type="button" onClick={() => setPreviewMode(true)} style={{ marginTop: 10 }}>
-            👁 학생 화면으로 미리보기
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+          <button
+            className="btn btn-outline"
+            type="button"
+            onClick={() => setSelectedDay(null)}
+            aria-label="일차 목록으로"
+            style={{ padding: '9px 12px', flexShrink: 0 }}
+          >
+            ←
+          </button>
+          <h2 style={{ margin: 0, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selectedDay.title}
+          </h2>
+          <button className="btn btn-accent" type="button" onClick={() => setPreviewMode(true)} style={{ flexShrink: 0 }}>
+            👁 미리보기
           </button>
         </div>
         <div className="pill-row">
