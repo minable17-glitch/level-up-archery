@@ -13,10 +13,11 @@
   --body-muted: #6b7280;
   --bg: #eee7d6;
 
-  --shadow-sm: 0 1px 2px rgba(20, 20, 10, 0.05), 0 1px 3px rgba(20, 20, 10, 0.06);
-  --shadow-md: 0 4px 10px rgba(20, 20, 10, 0.08), 0 2px 4px rgba(20, 20, 10, 0.06);
-  --radius-card: 16px;
-  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(20, 20, 10, 0.04), 0 2px 6px rgba(20, 20, 10, 0.05);
+  --shadow-md: 0 6px 16px rgba(20, 20, 10, 0.09), 0 2px 6px rgba(20, 20, 10, 0.06);
+  --radius-card: 20px;
+  --radius-sm: 12px;
+  --border-soft: rgba(28, 23, 10, 0.06);
 }
 
 * {
@@ -86,10 +87,10 @@ button, input, textarea, select {
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
-  padding: 16px;
+  padding: 18px;
   margin-bottom: 14px;
 }
 
@@ -115,16 +116,26 @@ button, input, textarea, select {
 .field input[type="text"],
 .field input[type="number"],
 .field input[type="password"],
+.field input[type="url"],
 .field textarea,
 .field select {
   width: 100%;
   min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
   font-size: 15px;
-  background: var(--surface);
+  background: var(--surface-alt);
   color: var(--body-color);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--surface);
 }
 
 .field textarea {
@@ -154,19 +165,17 @@ button, input, textarea, select {
 .btn-primary {
   background: var(--primary);
   color: #fff;
-  box-shadow: var(--shadow-sm);
 }
 
 .btn-accent {
   background: var(--accent);
   color: #241a00;
-  box-shadow: var(--shadow-sm);
 }
 
 .btn-outline {
-  background: var(--surface);
+  background: var(--surface-alt);
   color: var(--primary);
-  border: 1.5px solid var(--border-color);
+  border: none;
 }
 
 .btn-danger {
@@ -209,16 +218,17 @@ button, input, textarea, select {
 }
 
 .pill {
-  padding: 7px 12px;
+  padding: 8px 14px;
   border-radius: 999px;
-  border: 1.5px solid var(--border-color);
-  background: var(--surface);
+  border: none;
+  background: var(--surface-alt);
   font-size: 13px;
   font-weight: 700;
   color: var(--body-muted);
   cursor: pointer;
   min-width: 0;
   flex-shrink: 0;
+  transition: background 0.1s ease, color 0.1s ease;
 }
 
 .pill.active {
@@ -241,9 +251,9 @@ button, input, textarea, select {
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   margin-bottom: 10px;
@@ -311,7 +321,7 @@ button, input, textarea, select {
 .content-card img {
   width: 56px;
   height: 56px;
-  border-radius: 8px;
+  border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
   background: var(--surface-alt);
@@ -340,7 +350,7 @@ button, input, textarea, select {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
-  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -2px 10px rgba(20, 20, 10, 0.06);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 10;
 }
@@ -348,7 +358,7 @@ button, input, textarea, select {
 .bottom-nav button {
   background: none;
   border: none;
-  padding: 9px 2px 8px;
+  padding: 10px 2px 9px;
   font-size: 11.5px;
   font-weight: 700;
   color: var(--body-muted);
@@ -356,12 +366,8 @@ button, input, textarea, select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
-}
-
-.bottom-nav button .icon {
-  font-size: 18px;
 }
 
 .bottom-nav button.active {
