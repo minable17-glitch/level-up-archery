@@ -218,3 +218,16 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 **4차 — 일차 상세 화면들의 중복된 "뒤로가기" 줄 줄이기.** 사용자가 관리자 화면(일차 관리 → 일차 선택) 스크린샷을 보여주며 "이것도 효율적으로" 라고 해서 보니, `← 일차 목록`(단독 줄) → 제목만 담은 카드 → `미리보기` 버튼(전체 너비) → STEP pill 순으로 **같은 내용을 두 번 세 번 나눠서** 쌓고 있었다 — "콘텐츠 추가" 폼에 닿기 전에 화면을 한참 내려야 했다. 똑같은 구조(뒤로가기 버튼 한 줄 + 제목만 담은 카드 한 줄)가 쓰인 5곳을 전부 "뒤로가기 화살표 + 제목(+필요하면 보조 버튼)"을 **한 줄짜리 카드**로 합쳤다:
 - `DayView.jsx`(학생, 일차 상세) · `AdminDayManager.jsx`(교사, 일차 상세 — 제목 옆에 "👁 미리보기" 버튼도 같은 줄로) · `DayPreview.jsx`(교사, 미리보기 화면) · `AdminStudentDetail.jsx`(교사, 학생 상세) · `AdminTab.jsx`(학급 선택 후 "← 학급 목록" + 학생·기록/일차관리 pill을 한 줄로)
 - 뒤로가기 버튼은 글자(`← 일차 목록`) 대신 화살표 아이콘만(`←`, `aria-label`로 스크린리더 텍스트는 유지) 쓰고, 제목은 `text-overflow: ellipsis`로 길면 "..." 처리. 화면마다 한 줄씩 줄어서, 교사용 "일차 상세 → 콘텐츠 추가" 화면은 스크롤 없이 바로 폼이 보일 정도로 짧아졌다(Playwright 스크린샷으로 전/후 비교 확인).
+
+## 11. Figma 디자인 파일 (일부만 완료)
+
+"UI 개선 figma 활용하자" 요청으로 새 Figma 파일을 만들어서 앱의 색상 토큰(`index.css`와 동일)·버튼 컴포넌트(Primary/Accent/Outline)·"역할 선택" 화면 하나까지 재현해뒀다. 파일: https://www.figma.com/design/GUkZLC3Qkuz13ZHGn5jXb1 — 사용자 Figma 계정이 **Starter 플랜이라 MCP 호출 한도**가 있어서, 그 한도에 걸려 일차 목록·배워보기 등 나머지 화면은 아직 못 만들었다. 사용자가 "지금까지만 해달라"고 해서 여기서 멈췄다. 나중에 이어서 하려면: 플랜 업그레이드 또는 한도 초기화를 기다린 뒤, 같은 파일(`fileKey: GUkZLC3Qkuz13ZHGn5jXb1`)에 이어서 화면을 더 만들면 된다(색상 변수·버튼 컴포넌트는 이미 있으니 재사용).
+
+## 12. 교사용 MCP 서버 (`mcp-server/`)
+
+"mcp 만들어줘" 요청으로, 교사가 Claude(Claude Code/Desktop)에서 양궁 앱 데이터를 직접 물어볼 수 있는 **읽기 전용** 로컬 MCP 서버를 추가했다. Node.js(`@modelcontextprotocol/sdk`) + `@supabase/supabase-js`로 Supabase 테이블을 직접 조회한다(RLS를 우회하는 **service_role 키** 사용 — 교사 본인 컴퓨터에서만 돌리는 신뢰된 로컬 도구라는 전제. 앱 자체의 학생/교사 익명 인증 흐름과는 무관).
+
+- 도구 6개: `list_classes`/`list_students`/`list_days`/`get_shooting_logs`/`get_reflection_answers`/`get_class_summary`(학급 전체 집계 — 총 명중률, 학생별 랭킹 TOP 20). 쓰기/삭제 도구는 의도적으로 없음(실수 방지, 수정은 앱 관리자 화면에서).
+- 설치·연결 방법은 `mcp-server/README.md`에 자세히 적어뒀다(Claude Code `claude mcp add`, Claude Desktop 설정 JSON 둘 다 안내). `service_role` 키를 Supabase 대시보드에서 직접 발급받아 `.env`에 넣어야 하는데, 이 키는 모든 보안 검사를 건너뛰므로 README에 강조 경고를 남겨뒀다.
+- `shooting_logs`/`reflections`/`reflection_answers` 테이블이 이미 `class_name`/`student_name`/`day_title`을 같이 저장해두고 있어서(비정규화), 복잡한 조인 없이 바로 쓸만한 결과가 나온다. 성찰 답변만 `reflection_questions`와 PostgREST 임베드(`reflection_questions(question_text)`)로 질문 내용을 같이 가져온다.
+- **테스트 한계**: 이 세션 샌드박스는 Supabase 서브도메인 접근이 막혀 있어서(기존에도 반복된 제약) 실제 데이터 조회까지는 확인 못 했다. 대신 (1) 서버가 MCP 핸드셰이크에 정상 응답하고 도구 6개가 올바른 스키마로 등록되는 것, (2) 네트워크 실패 시 서버가 죽지 않고 `isError: true`로 에러를 깔끔하게 돌려주는 것(Supabase 키가 틀렸거나 네트워크가 막혔을 때도 서버 자체는 안정적으로 동작)을 Node 스크립트로 직접 stdio 핸드셰이크를 주고받아 확인했다. 실제 `service_role` 키로 진짜 데이터가 잘 나오는지는 사용자 컴퓨터에서 연결해본 뒤 확인이 필요하다.

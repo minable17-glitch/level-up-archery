@@ -1,0 +1,17 @@
+{
+  "name": "level-up-archery-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "양궁 성장일지(LEVEL-UP ARCHERY) Supabase 데이터를 Claude가 직접 조회할 수 있게 해주는 MCP 서버",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@supabase/supabase-js": "^2.118.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.24.1"
+  }
+}
