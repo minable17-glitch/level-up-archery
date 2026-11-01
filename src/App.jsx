@@ -5,7 +5,7 @@ import DayList from './components/DayList';
 import DayView from './components/DayView';
 import MyRecordsTab from './components/MyRecordsTab';
 import AdminTab from './components/AdminTab';
-import { getSession, clearSession } from './lib/session';
+import { getSession, clearSession, getTeacherSession } from './lib/session';
 import { logout as apiLogout } from './lib/api';
 import { startAutoFlush } from './lib/offlineQueue';
 
@@ -19,8 +19,13 @@ const TABS = [
 
 export default function App() {
   const [student, setStudent] = useState(() => getSession());
-  // 'student' | 'admin' | null(=역할 선택 화면). 이미 로그인된 학생이 있으면 바로 학생 화면으로.
-  const [mode, setMode] = useState(() => (getSession() ? 'student' : null));
+  // 'student' | 'admin' | null(=역할 선택 화면). 이미 로그인된 학생/교사가 있으면 바로 그 화면으로
+  // (앱을 완전히 껐다 켜거나 새로고침해도 로그아웃을 누르기 전까진 다시 로그인하지 않아도 됨).
+  const [mode, setMode] = useState(() => {
+    if (getSession()) return 'student';
+    if (getTeacherSession()) return 'admin';
+    return null;
+  });
   const [activeTab, setActiveTab] = useState('days');
   const [selectedDay, setSelectedDay] = useState(null);
 
