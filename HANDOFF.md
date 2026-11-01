@@ -167,7 +167,9 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 
 교사가 외부 AI(구글 Gem)에 의존하지 않고 자체적으로 자세를 점검할 수 있게 해달라고 해서, Google의 **MediaPipe Pose Landmarker**(`@mediapipe/tasks-vision`)를 학생 브라우저 안에서 직접 돌리는 방식으로 구현했다. 서버/DB 변경 없음 — 전부 클라이언트 사이드.
 
-- **플로우**: 학생이 배워보기(STEP 2)에서 "📸 내 자세 평가해보기" → 측면(옆모습) 사진을 찍거나 고름(`<input type="file" accept="image/*" capture="environment">`) → `poseModel.js`가 `@mediapipe/tasks-vision`을 동적 import하고 CDN(jsdelivr의 wasm 런타임 + storage.googleapis.com의 pose_landmarker_lite 모델 파일)에서 필요한 파일을 내려받아 `PoseLandmarker`를 1회 생성(이후 재사용, 싱글턴) → 사진 1장에 대해 33개 포즈 랜드마크 추출 → `postureAngles.js`의 `evaluatePosture()`가 순수 기하 계산으로 5개 항목을 good/warn/bad로 판정 → `PostureCheck.jsx`가 사진 위에 스켈레톤(선+점)을 그려 보여주고 항목별 피드백 문구를 나열.
+- **플로우(실시간 카메라, 기본)**: 학생이 배워보기(STEP 2)에서 "📸 내 자세 평가해보기" → 기본은 "실시간 카메라" 모드. `getUserMedia()`로 카메라를 켜고(기본 후면 카메라, "카메라 전환" 버튼으로 전/후면 전환) `poseModel.js`의 `loadPoseLandmarkerForVideo()`(`runningMode: 'VIDEO'`)로 `PoseLandmarker`를 1회 생성 → `requestAnimationFrame` 루프에서 매 프레임 `detectForVideo()`로 포즈를 뽑아 캔버스에 영상+스켈레톤(선+점)을 그리고, 체크리스트는 300ms마다(매 프레임 state를 갱신하면 너무 자주 리렌더돼서) `postureAngles.js`의 `evaluatePosture()`로 갱신. 화면을 나가거나 "카메라 끄기"를 누르면 `MediaStream`의 모든 트랙을 `stop()`해서 카메라를 확실히 끈다.
+- **플로우(사진 한 장, 대체 수단)**: "사진으로 하기" 탭으로 전환하면 기존 방식 그대로 — 사진을 찍거나 고르면(`<input type="file" accept="image/*" capture="environment">`) `poseModel.js`의 `loadPoseLandmarker()`(`runningMode: 'IMAGE'`)로 한 장만 분석. `getUserMedia`를 아예 못 쓰는 브라우저(구형 웹뷰 등)에서는 처음부터 이 모드로 시작한다(`navigator.mediaDevices?.getUserMedia` 존재 여부로 판단). 카메라 권한이 막혀 있거나(`NotAllowedError`) 카메라가 없는 기기(`NotFoundError`)에서도 이 모드로 전환하라고 안내한다.
+- **두 모드 모두** 분석 자체는 `postureAngles.js`의 `evaluatePosture()`(5개 항목, 아래)를 그대로 공유하고, `PostureCheck.jsx`가 사진/영상 프레임 위에 스켈레톤을 그려 보여준 뒤 항목별 피드백 문구를 나열하는 것도 동일하다.
 - **왜 "측면" 사진인가**: 정면/뒤 사진은 좌우 대칭(어깨 수평 등)을 보기엔 좋지만 팔꿈치가 굽었는지·몸이 앞뒤로 기울었는지는 옆에서 봐야 더 잘 보인다. 그래서 체크 5개도 전부 옆모습에서 실제로 측정 가능한 것들로 구성했다(스탠스 폭처럼 옆모습에서 안 보이는 축은 애초에 체크 항목에서 뺐다):
   1. 발 간격(스탠스) — 두 발목의 가로 거리(= 옆모습 기준 앞뒤 벌어짐)를 상체 길이로 정규화
   2. 앞으로 뻗은 팔(활 든 팔) 펴짐 — 어깨-팔꿈치-손목 각도. 두 팔 중 더 곧게 펴진 쪽을 자동으로 "뻗은 팔"로 판단(손잡이를 어느 손으로 잡는지 입력받지 않음)
@@ -177,8 +179,9 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
   - 모든 거리 기준값(threshold)은 실제 코칭 데이터로 캘리브레이션한 게 아니라 상식적인 범위로 잡은 **참고용 추정치**다. 화면에도 "참고용, 정확한 코칭을 대신하지 않음"이라고 명시해뒀다. 교사가 써보고 기준이 너무 엄격/느슨하면 `postureAngles.js`의 숫자(0.5, 160/140, 0.12/0.25, 10/20, 0.15/0.3)만 조정하면 된다.
   - 한쪽 팔·발·몸통이 사진에 잘 안 보이면(MediaPipe visibility < 0.5) 해당 항목은 good/warn/bad 대신 "skip"으로 표시하고 이유를 알려준다(억지로 틀린 판정을 내지 않음).
 - **개인정보**: 사진은 Supabase에 업로드되지 않고, `URL.createObjectURL`로 그 기기 메모리에서만 처리 후 즉시 해제(`revokeObjectURL`)한다. 분석 결과(체크리스트)도 저장하지 않음 — 매번 그 자리에서만 보여주고 끝. (나중에 "내 기록"에 이력으로 남기고 싶다고 하면 별도 테이블+RLS를 추가하면 됨.)
-- **네트워크 의존성**: 처음 쓸 때 jsdelivr(wasm 런타임, ~백몇십KB)와 storage.googleapis.com(포즈 모델 파일)에서 내려받는다. 이후엔 브라우저가 캐싱하지만, 학교 와이파이가 해당 도메인을 막아두면 "분석 도구를 불러오지 못했어요" 에러가 뜬다 — 그럴 땐 다른 네트워크(핫스팟 등)로 한 번 열어서 캐싱해두면 그 다음부터는 괜찮을 가능성이 높다.
-- **테스트 한계**: 이 세션의 샌드박스는 jsdelivr/storage.googleapis.com 같은 임의 외부 도메인 접근이 막혀 있어서, 실제 MediaPipe 모델을 불러와 진짜 사진을 분석하는 전체 플로우는 샌드박스에서 끝까지 돌려보지 못했다. 대신 (1) Playwright로 UI 셸(버튼 노출·화면 전환·뒤로가기)은 mock Supabase 응답으로 확인했고, (2) `postureAngles.js`의 판정 로직은 합성(가짜) 랜드마크 좌표로 좋은 자세/나쁜 자세/몸통 안 보임/미검출 케이스를 각각 직접 돌려서 의도대로 good/warn/bad/skip이 나오는 것을 확인했다. 실제 사진으로 모델이 제대로 랜드마크를 뽑아내는지, 저사양 기기(특히 카카오톡 인앱 브라우저)에서 WASM이 잘 도는지는 실제 배포 후 학생 기기에서 확인이 필요하다.
+- **네트워크 의존성**: 처음 쓸 때 jsdelivr(wasm 런타임, ~백몇십KB)와 storage.googleapis.com(포즈 모델 파일)에서 내려받는다. 이후엔 브라우저가 캐싱하지만, 학교 와이파이가 해당 도메인을 막아두면 "카메라를 불러오지 못했어요"/"분석 도구를 불러오지 못했어요" 에러가 뜬다 — 그럴 땐 다른 네트워크(핫스팟 등)로 한 번 열어서 캐싱해두면 그 다음부터는 괜찮을 가능성이 높다.
+- **카카오톡 등 인앱 브라우저 주의**: 실시간 카메라(`getUserMedia`)는 인앱 브라우저에서 권한 자체가 막혀 있거나 불안정한 경우가 있다. 그래서 "사진으로 하기"를 완전히 없애지 않고 대체 수단으로 남겨뒀다 — 카메라가 안 되면 사진 모드로 전환하라고 화면에 안내한다.
+- **테스트 한계**: 이 세션의 샌드박스는 jsdelivr/storage.googleapis.com 같은 임의 외부 도메인 접근이 막혀 있어서, 실제 MediaPipe 모델을 불러와 진짜로 분석하는 전체 플로우(사진이든 실시간 카메라든)는 샌드박스에서 끝까지 돌려보지 못했다. 대신 (1) Playwright를 `--use-fake-device-for-media-stream` 플래그로 띄워 카메라 권한 허용 → "카메라 시작하기" → 모델 로딩 실패(샌드박스 네트워크 차단으로 예상된 실패) → 에러 메시지로 깔끔하게 전환 → "사진으로 하기"로 전환까지 되는 것을 확인했고(카메라가 중간에 꺼지지 않고 멈추지 않음), (2) `postureAngles.js`의 판정 로직은 합성(가짜) 랜드마크 좌표로 좋은 자세/나쁜 자세/몸통 안 보임/미검출 케이스를 각각 직접 돌려서 의도대로 good/warn/bad/skip이 나오는 것을 확인했다. 실제 카메라로 모델이 제대로 랜드마크를 뽑아내는지, 저사양 기기에서 실시간 프레임 처리가 버벅이지 않는지는 실제 배포 후 학생 기기에서 확인이 필요하다.
 - **관리자 화면에서 미리보기**: §11의 `DayPreview`로 일차 전체를 미리보는 기능 안에 포함됨 — STEP 2 배워보기를 미리볼 때 자세 평가 도구도 자연스럽게 같이 보인다.
 
 ## 11. 교사용 일차 미리보기 (`DayPreview.jsx`)
