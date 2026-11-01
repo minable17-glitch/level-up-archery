@@ -93,7 +93,8 @@ src/
     PostureCheck.jsx              "내 자세 평가해보기" — 배워보기 화면에서 진입. 학생이 옆모습 사진을 찍으면 기기(브라우저) 안에서 MediaPipe Pose Landmarker(@mediapipe/tasks-vision)로 포즈를 추출해 발 간격/뻗은 팔 펴짐/당기는 팔 팔꿈치 높이/상체 기울기/머리 위치 5가지를 체크해서 보여줌. 사진은 서버로 전송·저장되지 않음(완전 클라이언트 사이드). 아래 §9 참고
     ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트). RecordTab과 같은 방식으로 문항별 답변을 800ms 디바운스 자동 저장 + 언마운트 시 즉시 flush
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
-    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사). 일차 수정 폼에 구글 Gem 링크 입력란(선택) — 아래 참고
+    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사). 일차 수정 폼에 구글 Gem 링크 입력란(선택) — 아래 참고. 배워보기(STEP2) 콘텐츠 편집 화면 아래에 "자세 평가 도구 미리보기" 토글 — 학생용 PostureCheck 컴포넌트를 그대로 재사용해서, 교사가 학생 계정 없이 자기 사진으로 바로 테스트해볼 수 있음
+    icons.jsx                     이모지 대신 쓰는 선 아이콘(line icon) 모음. stroke=currentColor라 글자색이 바뀌면 같이 바뀜(러닝 성찰일지 앱 EventBottomNav.tsx 방식 참고). 하단 탭·브랜드 헤더·목록 행 chevron·배워보기 CTA에 사용
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
     AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
     AdminRecords.jsx              🏆 명중 랭킹(TOP 20, 학급 내 모든 일차 명중 발수 합산, 새 RPC 없이 이미 불러온 슈팅 기록을 클라이언트에서 집계) + 학급 전체 슈팅기록/성찰기록 요약 표 + 학생 명단(이름 클릭 시 AdminStudentDetail로 드릴다운)
