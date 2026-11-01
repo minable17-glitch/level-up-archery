@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listDays, adminCreateDay, adminUpdateDay, adminDeleteDay, adminCopyDay, getMyClasses } from '../lib/api';
 import AdminContentEditor from './AdminContentEditor';
 import AdminReflectionEditor from './AdminReflectionEditor';
-import PostureCheck from './PostureCheck';
+import DayPreview from './DayPreview';
 
 const STEPS = [
   { key: 'read', label: 'STEP 1 읽어보기' },
@@ -101,7 +101,7 @@ export default function AdminDayManager({ classId }) {
   const [myClasses, setMyClasses] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [step, setStep] = useState('read');
-  const [showPosturePreview, setShowPosturePreview] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
 
   async function refresh() {
     try {
@@ -157,6 +157,10 @@ export default function AdminDayManager({ classId }) {
 
   const otherClasses = myClasses.filter((c) => c.id !== classId);
 
+  if (selectedDay && previewMode) {
+    return <DayPreview day={selectedDay} onBack={() => setPreviewMode(false)} />;
+  }
+
   if (selectedDay) {
     return (
       <div>
@@ -165,6 +169,9 @@ export default function AdminDayManager({ classId }) {
         </button>
         <div className="card">
           <h2>{selectedDay.title}</h2>
+          <button className="btn btn-accent btn-block" type="button" onClick={() => setPreviewMode(true)} style={{ marginTop: 10 }}>
+            👁 학생 화면으로 미리보기
+          </button>
         </div>
         <div className="pill-row">
           {STEPS.map((s) => (
@@ -174,26 +181,7 @@ export default function AdminDayManager({ classId }) {
           ))}
         </div>
         {step === 'read' && <AdminContentEditor kind="read" dayId={selectedDay.id} />}
-        {step === 'learn' && (
-          <>
-            <AdminContentEditor kind="learn" dayId={selectedDay.id} />
-            <div className="card">
-              <button
-                className="btn btn-outline btn-block"
-                type="button"
-                onClick={() => setShowPosturePreview((v) => !v)}
-              >
-                {showPosturePreview ? '자세 평가 도구 미리보기 접기' : '👀 자세 평가 도구 미리보기 (학생 화면과 동일)'}
-              </button>
-              {showPosturePreview && (
-                <p className="muted" style={{ fontSize: 12, marginTop: 8, marginBottom: 0 }}>
-                  학생이 배워보기에서 보는 것과 똑같은 도구예요. 선생님 사진으로 직접 테스트해볼 수 있어요.
-                </p>
-              )}
-            </div>
-            {showPosturePreview && <PostureCheck />}
-          </>
-        )}
+        {step === 'learn' && <AdminContentEditor kind="learn" dayId={selectedDay.id} />}
         {step === 'reflect' && <AdminReflectionEditor dayId={selectedDay.id} />}
       </div>
     );

@@ -93,7 +93,8 @@ src/
     PostureCheck.jsx              "내 자세 평가해보기" — 배워보기 화면에서 진입. 학생이 옆모습 사진을 찍으면 기기(브라우저) 안에서 MediaPipe Pose Landmarker(@mediapipe/tasks-vision)로 포즈를 추출해 발 간격/뻗은 팔 펴짐/당기는 팔 팔꿈치 높이/상체 기울기/머리 위치 5가지를 체크해서 보여줌. 사진은 서버로 전송·저장되지 않음(완전 클라이언트 사이드). 아래 §9 참고
     ReflectTab.jsx                 dayId prop 기준, 교사 문항 답변만 (일차당 1건 업서트). RecordTab과 같은 방식으로 문항별 답변을 800ms 디바운스 자동 저장 + 언마운트 시 즉시 flush
     AdminTab.jsx                  교사 계정 로그인/가입/찾기(AuthScreen) + 학급 선택(ClassPicker) + 서브탭 셸(학생·기록/일차 관리)
-    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사). 일차 수정 폼에 구글 Gem 링크 입력란(선택) — 아래 참고. 배워보기(STEP2) 콘텐츠 편집 화면 아래에 "자세 평가 도구 미리보기" 토글 — 학생용 PostureCheck 컴포넌트를 그대로 재사용해서, 교사가 학생 계정 없이 자기 사진으로 바로 테스트해볼 수 있음
+    AdminDayManager.jsx           일차 목록 CRUD → 일차 선택 시 STEP1/2/4 콘텐츠 편집 UI를 감싸서 보여줌. 일차별 "다른 반에 복사" 버튼(교사의 다른 학급 목록 중 골라서 admin_copy_day 호출, 읽어보기/배워보기/성찰 문항까지 통째로 복사). 일차 수정 폼에 구글 Gem 링크 입력란(선택) — 아래 참고. 일차 상세 화면 맨 위 "학생 화면으로 미리보기" 버튼 → DayPreview로 전환(아래 참고)
+    DayPreview.jsx                교사가 특정 일차를 학생이 보는 화면 그대로 미리보는 컴포넌트. ReadTab/LearnTab/RecordTab/ReflectTab을 학생 화면과 똑같이 재사용(그래서 자세 평가·Gem 버튼도 자동으로 같이 보임). STEP3/4는 저장 RPC가 로그인한 학생 본인 것만 저장하게 돼 있어 교사 계정으로는 저장이 안 되므로, 그 두 단계에서는 "미리보기라 저장 안 됨" 안내 배너를 보여줌 — 아래 §11 참고
     icons.jsx                     이모지 대신 쓰는 선 아이콘(line icon) 모음. stroke=currentColor라 글자색이 바뀌면 같이 바뀜(러닝 성찰일지 앱 EventBottomNav.tsx 방식 참고). 하단 탭·브랜드 헤더·목록 행 chevron·배워보기 CTA에 사용
     AdminContentEditor.jsx        읽어보기/배워보기 콘텐츠 CRUD (kind prop으로 공용화, dayId 기준)
     AdminReflectionEditor.jsx     성찰 문항 CRUD (일차별로 교사가 자유롭게 문항 추가/수정/삭제, dayId 기준)
@@ -178,7 +179,15 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - **개인정보**: 사진은 Supabase에 업로드되지 않고, `URL.createObjectURL`로 그 기기 메모리에서만 처리 후 즉시 해제(`revokeObjectURL`)한다. 분석 결과(체크리스트)도 저장하지 않음 — 매번 그 자리에서만 보여주고 끝. (나중에 "내 기록"에 이력으로 남기고 싶다고 하면 별도 테이블+RLS를 추가하면 됨.)
 - **네트워크 의존성**: 처음 쓸 때 jsdelivr(wasm 런타임, ~백몇십KB)와 storage.googleapis.com(포즈 모델 파일)에서 내려받는다. 이후엔 브라우저가 캐싱하지만, 학교 와이파이가 해당 도메인을 막아두면 "분석 도구를 불러오지 못했어요" 에러가 뜬다 — 그럴 땐 다른 네트워크(핫스팟 등)로 한 번 열어서 캐싱해두면 그 다음부터는 괜찮을 가능성이 높다.
 - **테스트 한계**: 이 세션의 샌드박스는 jsdelivr/storage.googleapis.com 같은 임의 외부 도메인 접근이 막혀 있어서, 실제 MediaPipe 모델을 불러와 진짜 사진을 분석하는 전체 플로우는 샌드박스에서 끝까지 돌려보지 못했다. 대신 (1) Playwright로 UI 셸(버튼 노출·화면 전환·뒤로가기)은 mock Supabase 응답으로 확인했고, (2) `postureAngles.js`의 판정 로직은 합성(가짜) 랜드마크 좌표로 좋은 자세/나쁜 자세/몸통 안 보임/미검출 케이스를 각각 직접 돌려서 의도대로 good/warn/bad/skip이 나오는 것을 확인했다. 실제 사진으로 모델이 제대로 랜드마크를 뽑아내는지, 저사양 기기(특히 카카오톡 인앱 브라우저)에서 WASM이 잘 도는지는 실제 배포 후 학생 기기에서 확인이 필요하다.
-- **관리자 화면에서 미리보기**: 교사가 학생 계정 없이도 써볼 수 있도록, `AdminDayManager.jsx`의 일차 상세 → STEP 2 배워보기 편집 화면 아래에 "자세 평가 도구 미리보기" 토글을 추가했다(같은 `PostureCheck` 컴포넌트를 그대로 재사용).
+- **관리자 화면에서 미리보기**: §11의 `DayPreview`로 일차 전체를 미리보는 기능 안에 포함됨 — STEP 2 배워보기를 미리볼 때 자세 평가 도구도 자연스럽게 같이 보인다.
+
+## 11. 교사용 일차 미리보기 (`DayPreview.jsx`)
+
+"선생님 화면에서 일차 미리보기 가능하게" 요청으로 추가했다. `AdminDayManager`에서 일차를 선택하면 상단에 "👁 학생 화면으로 미리보기" 버튼이 있고, 누르면 `DayPreview`로 전환된다.
+
+- **구현 방식**: 학생용 `DayView.jsx`와 똑같은 STEP1~4 pill 네비게이션을 그대로 복제하되, `ReadTab`/`LearnTab`/`RecordTab`/`ReflectTab`을 새로 만들지 않고 **그대로 재사용**한다. 별도의 "미리보기 전용 컴포넌트"를 안 만든 이유: 읽어보기·배워보기는 애초에 로그인 사용자를 구분하지 않는 순수 조회(`listReadContents`/`listLearnContents`가 `visible=true`만 보는 공개 select)라서 교사 계정으로 열어도 학생과 완전히 똑같이 동작한다.
+- **기록하기·성찰하기는 "보기"는 되지만 "저장"은 안 됨**: `get_my_shooting_log`/`get_my_reflection_answers`는 로그인한 사람 기준으로 조회하는데, 교사의 auth 계정은 `students` 테이블에 없어서 그냥 빈 결과가 온다(에러 아님 — 화면은 빈 과녁/빈 답변칸으로 정상적으로 뜸). 반대로 `save_shooting_log`/`save_reflection`/`save_reflection_answer`는 "로그인한 사람에 대응하는 학생 행이 없으면" `raise exception '로그인 정보를 찾을 수 없어요'`로 명시적으로 막아뒀다 — 즉 교사가 저장을 눌러도 서버에 반영되지 않는다(의도된 동작, 학생 데이터에 교사 계정으로 잘못된 행이 들어가는 걸 막기 위한 안전장치). 다만 RecordTab/ReflectTab은 원래 오프라인 대비용으로 저장 실패를 "지금 오프라인이에요, 나중에 자동 재시도할게요" 식으로 조용히 처리하도록 짜여 있어서, 이 실패가 "권한 없음"인지 "진짜 오프라인"인지 화면만 봐서는 구분이 안 된다. 그래서 `DayPreview`가 STEP3/4에 들어가면 미리 "여기서 저장해도 실제로는 저장 안 됨" 배너를 보여줘서 교사가 헷갈리지 않게 했다.
+- **DB/스키마 변경 없음** — 전부 기존 컴포넌트·RPC 재사용.
 
 ## 10. UI 다듬기 — 러닝 성찰일지 앱 참고
 
