@@ -4,6 +4,7 @@ import { cachedFetch } from '../lib/offlineCache';
 import { splitUrls, toYoutubeEmbedUrl } from '../lib/media';
 import BoxBreathing from './BoxBreathing';
 import PostureCheck from './PostureCheck';
+import { CameraIcon, BreathIcon, SparkleIcon, ChevronIcon } from './icons';
 
 export default function LearnTab({ dayId, gemUrl }) {
   const [contents, setContents] = useState([]);
@@ -88,11 +89,20 @@ export default function LearnTab({ dayId, gemUrl }) {
       <div className="card">
         <h2>배워보기</h2>
         <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>영상과 이미지를 보며 실제로 따라 해보세요.</p>
-        <button className="btn btn-accent btn-block" type="button" onClick={() => setShowBreathing(true)}>
-          🫁 박스 호흡 연습하기
-        </button>
-        <button className="btn btn-accent btn-block" type="button" onClick={() => setShowPostureCheck(true)} style={{ marginTop: 8 }}>
-          📸 내 자세 평가해보기
+      </div>
+
+      <button type="button" className="cta-card" onClick={() => setShowPostureCheck(true)}>
+        <span className="cta-icon"><CameraIcon size={22} /></span>
+        <span className="cta-text">
+          <span className="cta-title">내 자세 평가해보기</span>
+          <span className="cta-sub">사진 한 장으로 자세를 바로 확인해요</span>
+        </span>
+        <ChevronIcon style={{ opacity: 0.85 }} />
+      </button>
+
+      <div className="card">
+        <button className="btn btn-outline btn-block" type="button" onClick={() => setShowBreathing(true)}>
+          <BreathIcon size={18} /> 박스 호흡 연습하기
         </button>
         {gemUrl && (
           <a
@@ -100,9 +110,9 @@ export default function LearnTab({ dayId, gemUrl }) {
             href={gemUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ marginTop: 8, textAlign: 'center', display: 'block' }}
+            style={{ marginTop: 8, textAlign: 'center' }}
           >
-            ✨ AI 코치와 대화하기
+            <SparkleIcon size={18} /> AI 코치와 대화하기
           </a>
         )}
       </div>
@@ -118,6 +128,7 @@ export default function LearnTab({ dayId, gemUrl }) {
               <div className="title">{c.title}</div>
               {c.category && <span className="tag">{c.category}</span>}
             </div>
+            <ChevronIcon className="chevron" />
           </div>
         );
       })}

@@ -1,8 +1,13 @@
+import { TargetIcon } from './icons';
+
 export default function RoleGate({ onPickStudent, onPickAdmin }) {
   return (
     <div className="app-shell">
       <div className="app-header">
-        <h1>🎯 LEVEL-UP ARCHERY</h1>
+        <div className="brand-row">
+          <TargetIcon size={20} />
+          <h1>LEVEL-UP ARCHERY</h1>
+        </div>
         <div className="sub">양궁 성장일지</div>
       </div>
       <div className="app-main">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { listReadContents } from '../lib/api';
 import { cachedFetch } from '../lib/offlineCache';
 import { splitUrls } from '../lib/media';
+import { ChevronIcon } from './icons';
 
 export default function ReadTab({ dayId }) {
   const [contents, setContents] = useState([]);
@@ -59,6 +60,7 @@ export default function ReadTab({ dayId }) {
               <div className="title">{c.title}</div>
               {c.category && <span className="tag">{c.category}</span>}
             </div>
+            <ChevronIcon className="chevron" />
           </div>
         );
       })}

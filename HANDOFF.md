@@ -178,3 +178,13 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - **개인정보**: 사진은 Supabase에 업로드되지 않고, `URL.createObjectURL`로 그 기기 메모리에서만 처리 후 즉시 해제(`revokeObjectURL`)한다. 분석 결과(체크리스트)도 저장하지 않음 — 매번 그 자리에서만 보여주고 끝. (나중에 "내 기록"에 이력으로 남기고 싶다고 하면 별도 테이블+RLS를 추가하면 됨.)
 - **네트워크 의존성**: 처음 쓸 때 jsdelivr(wasm 런타임, ~백몇십KB)와 storage.googleapis.com(포즈 모델 파일)에서 내려받는다. 이후엔 브라우저가 캐싱하지만, 학교 와이파이가 해당 도메인을 막아두면 "분석 도구를 불러오지 못했어요" 에러가 뜬다 — 그럴 땐 다른 네트워크(핫스팟 등)로 한 번 열어서 캐싱해두면 그 다음부터는 괜찮을 가능성이 높다.
 - **테스트 한계**: 이 세션의 샌드박스는 jsdelivr/storage.googleapis.com 같은 임의 외부 도메인 접근이 막혀 있어서, 실제 MediaPipe 모델을 불러와 진짜 사진을 분석하는 전체 플로우는 샌드박스에서 끝까지 돌려보지 못했다. 대신 (1) Playwright로 UI 셸(버튼 노출·화면 전환·뒤로가기)은 mock Supabase 응답으로 확인했고, (2) `postureAngles.js`의 판정 로직은 합성(가짜) 랜드마크 좌표로 좋은 자세/나쁜 자세/몸통 안 보임/미검출 케이스를 각각 직접 돌려서 의도대로 good/warn/bad/skip이 나오는 것을 확인했다. 실제 사진으로 모델이 제대로 랜드마크를 뽑아내는지, 저사양 기기(특히 카카오톡 인앱 브라우저)에서 WASM이 잘 도는지는 실제 배포 후 학생 기기에서 확인이 필요하다.
+- **관리자 화면에서 미리보기**: 교사가 학생 계정 없이도 써볼 수 있도록, `AdminDayManager.jsx`의 일차 상세 → STEP 2 배워보기 편집 화면 아래에 "자세 평가 도구 미리보기" 토글을 추가했다(같은 `PostureCheck` 컴포넌트를 그대로 재사용).
+
+## 10. UI 다듬기 — 러닝 성찰일지 앱 참고
+
+사용자가 같은 세션에서 만든 다른 프로젝트 `minable17-glitch/running-journal`(Next.js + Tailwind v4)을 디자인 참고용으로 보여달라고 해서, 그 앱의 `globals.css`·`EventBottomNav.tsx` 등을 읽고 **포팅 가능한 부분만** 가져왔다(이 앱은 Vite + 순수 CSS라 프레임워크를 바꾸진 않음):
+
+- **이모지 → 선 아이콘(line icon)**: 러닝 앱이 하단 탭에서 이모지 대신 `stroke="currentColor"` SVG를 쓰는 이유(기기마다 이모지 그림이 달라 나란히 두면 지저분해 보임)를 그대로 따와서 `src/components/icons.jsx`를 만들었다(TargetIcon/ChartIcon/CameraIcon/BreathIcon/SparkleIcon/TrophyIcon/BookIcon/ChevronIcon). 적용한 곳: 하단 탭(일차/내 기록), 모든 화면의 "🎯 LEVEL-UP ARCHERY"/"🎯 관리자" 등 브랜드 헤더(`.brand-row` 클래스), 배워보기의 CTA 버튼들. **적용 안 한 곳**(일부러 남김, 러닝 앱도 전부 다 바꾸진 않았음): `PostureCheck.jsx`의 ✅⚠️❗ 상태 표시, `AdminRecords.jsx`의 🏆·🥇🥈🥉 랭킹 — 정보 전달용 글자라 위험 대비 이득이 적어서 남겨둠.
+- **카드/목록 다듬기**: `index.css`에 `--shadow-sm`/`--shadow-md` 토큰을 추가해 `.card`/`.content-card`/`.btn-primary`/`.btn-accent`에 은은한 그림자를 줬다(기존엔 그림자가 아예 없었음). `.content-card`에 `>`(ChevronIcon) 붙여서 "누르면 들어가는 행"이라는 걸 더 분명하게 했다(DayList/ReadTab/LearnTab/AdminTab 클래스 목록에 적용).
+- **CTA 카드**: `.cta-card` 클래스(그라데이션 배경 + 아이콘 뱃지 + 제목/부제)를 새로 만들어서, 배워보기 화면에서 가장 중요한 기능인 "내 자세 평가해보기"를 다른 버튼들보다 시각적으로 도드라지게 했다(러닝 앱이 "나의 성장 리포트" 카드 하나만 그라데이션으로 강조하고 나머지는 평범한 버튼으로 두는 "화면당 하나의 강조"를 참고).
+- **스코프**: "전체적으로" 라고 하셨지만, 시간상 학생이 가장 자주 보는 화면(역할선택·로그인·일차목록·배워보기)과 교사 쪽 학급목록 화면 위주로 적용했다. RecordTab/ReflectTab/AdminRecords/AdminStudentDetail 등 나머지 화면은 아직 손대지 않았다 — 더 해달라고 하면 같은 패턴(그림자 토큰 + 아이콘 + chevron)으로 이어서 적용하면 된다.

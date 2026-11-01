@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listDays } from '../lib/api';
 import { cachedFetch } from '../lib/offlineCache';
+import { ChevronIcon } from './icons';
 
 export default function DayList({ classId, onSelectDay }) {
   const [days, setDays] = useState([]);
@@ -40,6 +41,7 @@ export default function DayList({ classId, onSelectDay }) {
           <div className="meta">
             <div className="title">{d.title}</div>
           </div>
+          <ChevronIcon className="chevron" />
         </div>
       ))}
     </div>

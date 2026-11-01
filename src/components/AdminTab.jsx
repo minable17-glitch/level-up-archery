@@ -8,6 +8,7 @@ import { getTeacherSession, setTeacherSession, clearTeacherSession } from '../li
 const REMEMBERED_USERNAME_KEY = 'archery_remembered_teacher_username';
 import AdminDayManager from './AdminDayManager';
 import AdminRecords from './AdminRecords';
+import { TargetIcon, ChevronIcon } from './icons';
 
 const SUB_TABS = [
   { key: 'records', label: '학생·기록' },
@@ -113,7 +114,7 @@ function AuthScreen({ onLoggedIn, onExit }) {
   return (
     <div className="app-shell">
       <div className="app-header">
-        <h1>🎯 관리자</h1>
+        <div className="brand-row"><TargetIcon size={20} /><h1>관리자</h1></div>
         <div className="sub">교사용 학급 관리</div>
       </div>
       <div className="app-main">
@@ -293,7 +294,7 @@ function ClassPicker({ onSelect, onLogout }) {
   return (
     <div className="app-shell">
       <div className="app-header">
-        <h1>🎯 내 학급</h1>
+        <div className="brand-row"><TargetIcon size={20} /><h1>내 학급</h1></div>
         <div className="sub">관리할 학급을 골라주세요</div>
       </div>
       <div className="app-main">
@@ -307,6 +308,7 @@ function ClassPicker({ onSelect, onLogout }) {
                 <div className="title">{c.name}</div>
                 <span className="tag">코드 {c.code}</span>
               </div>
+              <ChevronIcon className="chevron" />
             </div>
           ))}
         </div>
@@ -410,7 +412,7 @@ export default function AdminTab({ onExit }) {
   return (
     <div className="app-shell">
       <div className="app-header">
-        <h1>🎯 {selectedClass.name}</h1>
+        <div className="brand-row"><TargetIcon size={20} /><h1>{selectedClass.name}</h1></div>
         <div className="row" style={{ alignItems: 'center', gap: 8, marginTop: 4 }}>
           <ClassCodeEditor
             classId={selectedClass.id}

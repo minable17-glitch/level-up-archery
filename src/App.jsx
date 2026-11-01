@@ -8,13 +8,14 @@ import AdminTab from './components/AdminTab';
 import { getSession, clearSession, getTeacherSession } from './lib/session';
 import { logout as apiLogout } from './lib/api';
 import { startAutoFlush } from './lib/offlineQueue';
+import { TargetIcon, ChartIcon } from './components/icons';
 
 // 오프라인 중에 쓴 기록/성찰 답변을 인터넷이 연결되면 자동으로 재전송.
 startAutoFlush();
 
 const TABS = [
-  { key: 'days', label: '일차', icon: '🎯' },
-  { key: 'records', label: '내 기록', icon: '📈' },
+  { key: 'days', label: '일차', Icon: TargetIcon },
+  { key: 'records', label: '내 기록', Icon: ChartIcon },
 ];
 
 export default function App() {
@@ -54,9 +55,12 @@ export default function App() {
     <div className="app-shell">
       <div className="app-header">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1>🎯 LEVEL-UP ARCHERY</h1>
-            <div className="sub">{student.name} ({student.studentNumber})</div>
+          <div className="row" style={{ alignItems: 'center', gap: 8 }}>
+            <TargetIcon size={20} />
+            <div>
+              <h1 style={{ margin: 0 }}>LEVEL-UP ARCHERY</h1>
+              <div className="sub">{student.name} ({student.studentNumber})</div>
+            </div>
           </div>
           <div className="row" style={{ gap: 6 }}>
             <button
@@ -88,7 +92,7 @@ export default function App() {
       <div className="bottom-nav">
         {TABS.map((t) => (
           <button key={t.key} className={activeTab === t.key ? 'active' : ''} onClick={() => setActiveTab(t.key)} type="button">
-            <span className="icon">{t.icon}</span>
+            <t.Icon size={20} />
             {t.label}
           </button>
         ))}
