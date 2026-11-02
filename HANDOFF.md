@@ -231,3 +231,12 @@ supabase/schema.sql            전체 스키마 + RPC 함수 (Supabase SQL Edito
 - 설치·연결 방법은 `mcp-server/README.md`에 자세히 적어뒀다(Claude Code `claude mcp add`, Claude Desktop 설정 JSON 둘 다 안내). `service_role` 키를 Supabase 대시보드에서 직접 발급받아 `.env`에 넣어야 하는데, 이 키는 모든 보안 검사를 건너뛰므로 README에 강조 경고를 남겨뒀다.
 - `shooting_logs`/`reflections`/`reflection_answers` 테이블이 이미 `class_name`/`student_name`/`day_title`을 같이 저장해두고 있어서(비정규화), 복잡한 조인 없이 바로 쓸만한 결과가 나온다. 성찰 답변만 `reflection_questions`와 PostgREST 임베드(`reflection_questions(question_text)`)로 질문 내용을 같이 가져온다.
 - **테스트 한계**: 이 세션 샌드박스는 Supabase 서브도메인 접근이 막혀 있어서(기존에도 반복된 제약) 실제 데이터 조회까지는 확인 못 했다. 대신 (1) 서버가 MCP 핸드셰이크에 정상 응답하고 도구 6개가 올바른 스키마로 등록되는 것, (2) 네트워크 실패 시 서버가 죽지 않고 `isError: true`로 에러를 깔끔하게 돌려주는 것(Supabase 키가 틀렸거나 네트워크가 막혔을 때도 서버 자체는 안정적으로 동작)을 Node 스크립트로 직접 stdio 핸드셰이크를 주고받아 확인했다. 실제 `service_role` 키로 진짜 데이터가 잘 나오는지는 사용자 컴퓨터에서 연결해본 뒤 확인이 필요하다.
+
+## 13. 로그인 시도마다 익명 세션을 새로 만들던 문제 수정 (Supabase 익명 로그인 횟수 제한)
+
+사용자가 "비밀번호 오류로 횟수 제한하는 거 없애줘"라고 해서 찾아보니, 우리 코드에는 그런 횟수 제한이 전혀 없었다(`teacher_login` RPC는 그냥 틀리면 예외만 던짐). 진짜 원인은 `ensureFreshAnonSession()`(로그인 직전 `signOut()` + `signInAnonymously()`로 완전히 새 세션을 받는 함수)이 **제출할 때마다** 호출되고 있었던 것 — 비밀번호를 5번 틀리면 익명 로그인도 5번 새로 발급받는 구조였다. Supabase 프로젝트는 익명 로그인 자체에 (IP당) 횟수 제한을 걸어두기 때문에, 로그인을 몇 번 재시도하면 금방 "너무 많이 시도했다"는 에러에 걸렸다.
+
+- `api.js`: `ensureFreshAnonSession()`은 그대로 두되 **export**해서(로그인 화면이 마운트될 때 1번만 호출하는 용도) `teacherSignup`/`teacherLogin`/`studentLogin` 내부에서는 새로 만든 `ensureAnonSession()`(세션이 이미 있으면 그대로 쓰고, 없을 때만 새로 만듦)을 쓰도록 바꿨다.
+- `AdminTab.jsx`의 `AuthScreen`과 `StudentLoginGate.jsx`에 `useEffect(() => { ensureFreshAnonSession() }, [])`를 추가해서, **그 로그인 화면에 들어올 때 딱 한 번만** 새 익명 세션을 받는다. 그 화면에 머무는 동안(비밀번호를 몇 번을 틀리든) 같은 세션을 계속 재사용하고, 로그인에 성공하면 그 세션에 교사/학생 신원이 묶인다. 다른 사람과 세션이 섞이지 않게 하려던 원래 의도(세션 리셋)는 "로그인 화면에 새로 들어올 때"로 그대로 유지된다 — 로그아웃 후 다시 로그인 화면에 오거나, 학생↔관리자 화면을 전환할 때마다 그 컴포넌트가 새로 마운트되므로 여전히 신선한 세션을 받는다.
+- Playwright로 확인: 로그인 화면 진입 후 비밀번호를 5번 연속 틀려도 `signInAnonymously` 호출(=`/auth/v1/signup` 요청)은 늘어나지 않고, `teacher_login` RPC만 5번 호출되는 것을 확인했다(테스트에서 마운트 시 호출이 2번으로 찍힌 건 `main.jsx`의 `<StrictMode>`가 개발 모드에서 effect를 일부러 두 번 실행하기 때문 — 프로덕션 빌드에서는 1번만 실행됨).
+- DB 스키마 변경 없음.

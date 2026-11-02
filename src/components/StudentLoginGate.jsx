@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { studentLogin } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { studentLogin, ensureFreshAnonSession } from '../lib/api';
 import { setSession, getSavedClassCode, setSavedClassCode } from '../lib/session';
 import { TargetIcon } from './icons';
 
@@ -10,6 +10,13 @@ export default function StudentLoginGate({ onLoggedIn, onWantAdmin }) {
   const [pin, setPin] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+
+  // 이 화면에 들어올 때 딱 한 번 새 익명 세션을 받아둔다. PIN을 여러 번 틀려도
+  // 이 화면을 벗어나지 않는 한 다시 발급받지 않는다 — Supabase 익명 로그인
+  // 횟수 제한에 걸리지 않도록 하기 위함.
+  useEffect(() => {
+    ensureFreshAnonSession().catch(() => {});
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();

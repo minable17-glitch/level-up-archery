@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   teacherSignup, teacherLogin, teacherFindUsername, teacherResetPassword,
   createClass, getMyClasses, adminUpdateClassCode, logout as apiLogout,
+  ensureFreshAnonSession,
 } from '../lib/api';
 import { getTeacherSession, setTeacherSession, clearTeacherSession } from '../lib/session';
 
@@ -25,6 +26,16 @@ function AuthScreen({ onLoggedIn, onExit }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [rememberId, setRememberId] = useState(() => !!localStorage.getItem(REMEMBERED_USERNAME_KEY));
+
+  // 이 로그인 화면에 들어올 때 딱 한 번 새 익명 세션을 받아둔다(이전에 로그인했던
+  // 다른 사람과 세션이 섞이지 않게). 비밀번호를 여러 번 틀려도 이 화면을 벗어나지
+  // 않는 한 다시 발급받지 않는다 — Supabase의 익명 로그인 횟수 제한에 걸리지
+  // 않도록 하기 위함.
+  useEffect(() => {
+    ensureFreshAnonSession().catch(() => {
+      /* 실패해도 로그인 제출 시 다시 시도하므로 여기선 조용히 넘어감 */
+    });
+  }, []);
 
   function resetFields() {
     setPassword('');

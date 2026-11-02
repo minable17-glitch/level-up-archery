@@ -1,18 +1,29 @@
 import { supabase } from './supabaseClient';
 
-// 로그인(학생/관리자) 직전에는 항상 이전 익명 세션을 정리하고 새로 발급받아서,
-// 이전에 로그인했던 다른 사람의 세션과 섞이지 않도록 함.
-async function ensureFreshAnonSession() {
+// 로그인 화면에 처음 들어올 때 한 번, 이전 익명 세션을 정리하고 새로 발급받아서
+// 이전에 로그인했던 다른 사람의 세션과 섞이지 않도록 함(로그인 화면(AuthScreen/
+// StudentLoginGate)이 마운트될 때 1회 호출됨).
+export async function ensureFreshAnonSession() {
   await supabase.auth.signOut();
   const { data, error } = await supabase.auth.signInAnonymously();
   if (error) throw error;
   return data.session;
 }
 
+// 로그인 시도(제출) 직전에는 이미 세션이 있으면 그걸 그대로 쓰고, 없을 때만 새로
+// 만든다 — 비밀번호를 여러 번 틀려도 익명 세션을 매번 새로 발급받지 않게 하기 위함
+// (Supabase 프로젝트의 익명 로그인 횟수 제한에 금방 걸려서 "너무 많이 시도했다"는
+// 에러가 뜨는 문제가 있었음).
+async function ensureAnonSession() {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) return data.session;
+  return ensureFreshAnonSession();
+}
+
 // ── 로그인 ──────────────────────────────────────────────
 
 export async function teacherSignup({ username, password, email }) {
-  await ensureFreshAnonSession();
+  await ensureAnonSession();
   const { data, error } = await supabase.rpc('teacher_signup', {
     p_username: username,
     p_password: password,
@@ -23,7 +34,7 @@ export async function teacherSignup({ username, password, email }) {
 }
 
 export async function teacherLogin({ username, password }) {
-  await ensureFreshAnonSession();
+  await ensureAnonSession();
   const { data, error } = await supabase.rpc('teacher_login', { p_username: username, p_password: password });
   if (error) throw error;
   return data[0];
@@ -62,7 +73,7 @@ export async function adminUpdateClassCode(classId, newCode) {
 }
 
 export async function studentLogin({ classCode, studentNumber, name, pin }) {
-  await ensureFreshAnonSession();
+  await ensureAnonSession();
   const { data, error } = await supabase.rpc('student_login', {
     p_class_code: classCode,
     p_student_number: studentNumber,
