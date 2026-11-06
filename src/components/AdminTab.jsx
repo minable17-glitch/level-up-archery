@@ -9,11 +9,13 @@ import { getTeacherSession, setTeacherSession, clearTeacherSession } from '../li
 const REMEMBERED_USERNAME_KEY = 'archery_remembered_teacher_username';
 import AdminDayManager from './AdminDayManager';
 import AdminRecords from './AdminRecords';
+import AdminAssessment from './AdminAssessment';
 import { TargetIcon, ChevronIcon } from './icons';
 
 const SUB_TABS = [
   { key: 'records', label: '학생·기록' },
   { key: 'days', label: '일차 관리' },
+  { key: 'assess', label: '수행평가' },
 ];
 
 function AuthScreen({ onLoggedIn, onExit }) {
@@ -455,6 +457,7 @@ export default function AdminTab({ onExit }) {
 
         {subTab === 'records' && <AdminRecords classId={selectedClass.id} />}
         {subTab === 'days' && <AdminDayManager classId={selectedClass.id} />}
+        {subTab === 'assess' && <AdminAssessment classId={selectedClass.id} />}
 
         <div className="center" style={{ marginTop: 8 }}>
           <button className="btn btn-outline" type="button" onClick={handleLogout}>로그아웃</button>

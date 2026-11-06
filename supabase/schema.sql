@@ -1063,3 +1063,103 @@ begin
 end;
 $$;
 grant execute on function admin_copy_day(uuid, uuid, text) to anon, authenticated;
+
+-- ── 수행평가 채점 (과녁 구멍 통과/실패, 일차와 무관한 별도 기록) ──────
+
+create table if not exists assessment_results (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references students(id) on delete cascade,
+  class_id uuid not null references classes(id) on delete cascade,
+  class_name text,
+  student_name text,
+  student_number text,
+  passed boolean not null,
+  detected_by text not null default 'auto' check (detected_by in ('auto', 'manual')),
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_assessment_results_student on assessment_results(student_id, created_at);
+create index if not exists idx_assessment_results_class on assessment_results(class_id, created_at desc);
+
+alter table assessment_results enable row level security;
+-- 직접 select/insert/update/delete는 막고 전부 아래 security definer 함수로만 접근
+
+create or replace function admin_add_assessment_result(p_student_id uuid, p_passed boolean, p_detected_by text default 'auto')
+returns assessment_results
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_student students%rowtype;
+  v_row assessment_results%rowtype;
+begin
+  perform assert_student_owner(p_student_id);
+  select * into v_student from students where students.id = p_student_id;
+  insert into assessment_results (student_id, class_id, class_name, student_name, student_number, passed, detected_by)
+  values (
+    p_student_id, v_student.class_id,
+    (select name from classes where classes.id = v_student.class_id),
+    v_student.name, v_student.student_number,
+    p_passed, coalesce(nullif(trim(p_detected_by), ''), 'auto')
+  )
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+grant execute on function admin_add_assessment_result(uuid, boolean, text) to anon, authenticated;
+
+create or replace function admin_list_assessment_results(p_student_id uuid)
+returns setof assessment_results
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_student_owner(p_student_id);
+  return query select * from assessment_results where assessment_results.student_id = p_student_id order by created_at asc;
+end;
+$$;
+grant execute on function admin_list_assessment_results(uuid) to anon, authenticated;
+
+create or replace function admin_update_assessment_result(p_id uuid, p_passed boolean)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_student_id uuid;
+begin
+  select student_id into v_student_id from assessment_results where assessment_results.id = p_id;
+  if v_student_id is null then
+    raise exception '기록을 찾을 수 없어요';
+  end if;
+  perform assert_student_owner(v_student_id);
+  update assessment_results set passed = p_passed, detected_by = 'manual' where assessment_results.id = p_id;
+end;
+$$;
+grant execute on function admin_update_assessment_result(uuid, boolean) to anon, authenticated;
+
+create or replace function admin_delete_assessment_result(p_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_student_id uuid;
+begin
+  select student_id into v_student_id from assessment_results where assessment_results.id = p_id;
+  if v_student_id is null then
+    raise exception '기록을 찾을 수 없어요';
+  end if;
+  perform assert_student_owner(v_student_id);
+  delete from assessment_results where assessment_results.id = p_id;
+end;
+$$;
+grant execute on function admin_delete_assessment_result(uuid) to anon, authenticated;
+
+create or replace function admin_summarize_assessment_results(p_class_id uuid)
+returns table(student_id uuid, student_number text, student_name text, total_count int, pass_count int)
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  perform assert_class_owner(p_class_id);
+  return query
+    select ar.student_id, ar.student_number, ar.student_name,
+      count(*)::int as total_count,
+      count(*) filter (where ar.passed)::int as pass_count
+    from assessment_results ar
+    where ar.class_id = p_class_id
+    group by ar.student_id, ar.student_number, ar.student_name
+    order by ar.student_number;
+end;
+$$;
+grant execute on function admin_summarize_assessment_results(uuid) to anon, authenticated;

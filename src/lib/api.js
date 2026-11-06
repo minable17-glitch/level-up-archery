@@ -362,3 +362,37 @@ export async function adminResetStudentPin(studentId, newPin) {
   const { error } = await supabase.rpc('admin_reset_student_pin', { p_student_id: studentId, p_new_pin: newPin });
   if (error) throw error;
 }
+
+// ── 수행평가 (과녁 구멍 통과 자동 판정) ──────────────────────
+
+export async function adminAddAssessmentResult(studentId, passed, detectedBy = 'auto') {
+  const { data, error } = await supabase.rpc('admin_add_assessment_result', {
+    p_student_id: studentId,
+    p_passed: passed,
+    p_detected_by: detectedBy,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function adminListAssessmentResults(studentId) {
+  const { data, error } = await supabase.rpc('admin_list_assessment_results', { p_student_id: studentId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function adminUpdateAssessmentResult(id, passed) {
+  const { error } = await supabase.rpc('admin_update_assessment_result', { p_id: id, p_passed: passed });
+  if (error) throw error;
+}
+
+export async function adminDeleteAssessmentResult(id) {
+  const { error } = await supabase.rpc('admin_delete_assessment_result', { p_id: id });
+  if (error) throw error;
+}
+
+export async function adminSummarizeAssessmentResults(classId) {
+  const { data, error } = await supabase.rpc('admin_summarize_assessment_results', { p_class_id: classId });
+  if (error) throw error;
+  return data || [];
+}
